@@ -1,10 +1,9 @@
 SamplingRate=1e6;
 fc=2.44e9;
 idTX='sn:1044735411960009090038004f371e8d27';
-symbol=randi([0,1])
+%symbol=randi([0,1])
 symbols = randi([0, 1], 1000, 1);
 
-symbolsPluto=symbols+symbols*i
 sig= pammod(symbols, 2)*(1+i);
 
 Fs = 100000;           % Frequenza di campionamento (Hz)
@@ -16,7 +15,7 @@ span = 6; % Lunghezza in simboli del filtro
 sps = 8;  % Campionamenti per simbolo (oversampling factor)
 rcosine_filter = rcosdesign(rolloff_factor, span, sps);
 
-% Generazione di un segnale di esempio
+% filtraggio del segnale
 tx_signal = upfirdn(sig, rcosine_filter, sps);
 
 
