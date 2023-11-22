@@ -31,9 +31,12 @@ rxWave=double(rxWave)
 rcosine_filter = rcosdesign(rolloff_factor, span, sps,'sqrt');
 rx_signal = upfirdn(rxWave, rcosine_filter,1,8);
 
-t4=[0:1:1017];
+t4=[0:1:length(rxWave)-1];
 figure(3);
 plot(rxWave);
+t5=[0:1:length(rx_signal)-1];
+figure(4);
+plot(rx_signal);
 
 %Calculate quantization noise power 
 %(assuming constant input)
