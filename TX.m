@@ -8,9 +8,13 @@ symbols(750)=1;
 %symbols = randi([0, 1], 1000, 1);
 sig= pammod(symbols, 2);
 figure(1)
-t=[0:1:999];
+sig=complex(sig);
+t=[0:1:length(sig)-1];
 plot(t,sig,'o')
-sig=complex(symbols);
+title('segnale')
+xlabel('t')
+
+
 
 % sig= pammod(symbols, 2)*(1+i);
 
@@ -24,26 +28,36 @@ sps = 8;  % Campionamenti per simbolo (oversampling factor)
 rcosine_filter = rcosdesign(rolloff_factor, span, sps,'sqrt');
 figure(2)
 plot(rcosine_filter,'.')
+title('filtro tx')
 
 % Generazione di un segnale di esempio
 tx_signal = upfirdn(sig, rcosine_filter, sps);
-t3=[0:1:8064]
-
-
-rcosine_filter = rcosdesign(rolloff_factor, span, sps,'sqrt');
-rx_signal = upfirdn(tx_signal, rcosine_filter,1,8);
-t4=[0:1:1017]
+t3=[0:1:length(tx_signal)-1]
 figure(3)
 plot(t3,tx_signal)
-figure(4)
-plot(t4,rx_signal)
-%ritardo di 9 campioni(dimensione filtro)
-txNorm=complex(tx_signal/max(abs(tx_signal)));
-txPluto = sdrtx('Pluto',...
-       'RadioID',idTX,...
-       'CenterFrequency',fc,...
-       'Gain',-3, ... %must be between -89 and 0
-       'BasebandSampleRate',SamplingRate);
+title('segnale tx filtrato')
+xlabel('t')
 
-transmitRepeat(txPluto,txNorm);
-%100k simb per secondo
+
+% rcosine_filter = rcosdesign(rolloff_factor, span, sps,'sqrt');
+% rx_signal = upfirdn(tx_signal, rcosine_filter,1,8);
+% t4=[0:1:length(rx_signal)-1];
+% figure(4)
+% plot(t4,rx_signal)
+% title('segnale rx filtrato');
+% xlabel('t')
+% for i=1:length(rx_signal)-(2*span)
+%     rx_signal_no_offset(i)=rx_signal(i+span);
+% end
+% sig_demod=pamdemod(rx_signal_no_offset,2);
+
+%ritardo di 9 campioni(dimensione filtro)
+% txNorm=complex(tx_signal/max(abs(tx_signal)));
+% txPluto = sdrtx('Pluto',...
+%        'RadioID',idTX,...
+%        'CenterFrequency',fc,...
+%        'Gain',-3, ... %must be between -89 and 0
+%        'BasebandSampleRate',SamplingRate);
+% 
+% transmitRepeat(txPluto,txNorm);
+% %100k simb per secondo
