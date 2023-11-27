@@ -16,27 +16,52 @@ toc;
 %% Plots
 % this will plot the absolute value of the samples
 figure (1)
- plot(abs(rxWave))
- grid on
-rolloff_factor = 0.25; % Fattore di roll-off del filtro
+plot(abs(rxWave));
+grid on
+%rolloff_factor = 0.25; % Fattore di roll-off del filtro
+% 
+% % Design del filtro a coseno rialzato span = 9; % Lunghezza in simboli
+% del filtro sps = 8;  % Campionamenti per simbolo (oversampling factor)
+% rcosine_filter = rcosdesign(rolloff_factor, span,sps,'sqrt'); %
+% figure(2); % plot(rcosine_filter,'.'); rxWave=double(rxWave);
+% 
+% rcosine_filter = rcosdesign(rolloff_factor, span, sps,'sqrt'); rx_signal
+% = upfirdn(rxWave, rcosine_filter,1,sps);
+rxfilter = comm.RaisedCosineReceiveFilter( ...
+  'Shape','Square root', ...
+  'RolloffFactor',beta, ...
+  'FilterSpanInSymbols',span, ...
+  'InputSamplesPerSymbol',sps, ...
+  'DecimationFactor',sps);
 
-% Design del filtro a coseno rialzato
-span = 9; % Lunghezza in simboli del filtro
-sps = 8;  % Campionamenti per simbolo (oversampling factor)
-rcosine_filter = rcosdesign(rolloff_factor, span,sps,'sqrt');
-figure(2);
-plot(rcosine_filter,'.');
-rxWave=double(rxWave)
+rx_signal=rxfilter(rxWave); %correggere con rxWave 
 
-rcosine_filter = rcosdesign(rolloff_factor, span, sps,'sqrt');
-rx_signal = upfirdn(rxWave, rcosine_filter,1,8);
+%correzione delay tx
+%rx_signal= rx_signal((span*sps)+1:end);
+
 
 t4=[0:1:length(rxWave)-1];
 figure(3);
 plot(rxWave);
-t5=[0:1:length(rx_signal)-1];
+title('segnale ricevuto');
 figure(4);
-plot(rx_signal);
+plot(t4,rxWave);
+title('segnale ricevuto nel tempo');
+xlabel('t');
+figure;
+t5=[0:1:length(rx_signal)-1];
+plot(t5,rx_signal);
+title('segnale filtrato');
+xlabel('t')
+% %correzione ritardo di 9 campioni(dimensione filtro)
+% for i=1:length(rx_signal)-(2*span)
+%     rx_signal_no_offset(i)=rx_signal(i+span);
+% end
+%demodulazione
+sig_demod=pamdemod(rx_signal_no_offset,2);
+
+
+
 
 %Calculate quantization noise power 
 %(assuming constant input)
