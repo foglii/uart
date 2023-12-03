@@ -1,0 +1,49 @@
+% ------- packet frame format --------
+%
+%  8 bit seq_start
+%  8/16 bit data
+%  8 bit seq_end
+%
+% ------------------------------------
+
+
+seq_start=[1,0,1,0,1,0,1,0];
+seq_end=[1,1,1,0,0,0,1,1];
+
+mes = [1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1];
+
+seq_start = sprintf('%d',seq_start);
+seq_end = sprintf('%d',seq_end);
+mes = sprintf('%d',mes);
+
+message = horzcat(seq_start,mes,seq_end);
+
+[data, dataOK] = unpackMessage(message)
+
+%-------Unpack raw message function---------
+% Data una stringa contenente solamente il
+% pacchetto su cui bisogna fare l'unpack, 
+% ossia seq_start + message + parity +seq_end 
+
+function [data, parityCheck] = unpackMessage(rawData)
+    DecRawData = bin2dec(rawData);
+    
+    mask = 0xFF00;      %   se 8 bit 
+    %mask = 0xFFFF00;       se 16 bit
+
+    %Removing seq_start and seq_end
+    DecRawData = bitand(DecRawData,mask);
+    DecRawData = bitshift(DecRawData,-8);
+    parityBit = mod(DecRawData,2);
+    DecRawData = bitshift(DecRawData,-1);
+    data = DecRawData;
+
+    sum = 0;
+    for i = 1 : (length(rawData)-21)
+        sum = sum + mod(DecRawData,2);
+        DecRawData = bitshift(DecRawData,-1);
+    end
+
+    parityCheck = (mod(sum,2) == parityBit);
+    
+end
