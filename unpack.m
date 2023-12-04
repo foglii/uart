@@ -5,12 +5,13 @@
 %  8 bit seq_end
 %
 % ------------------------------------
-
+clear;
+close all;
 
 seq_start=[1,0,1,0,1,0,1,0];
 seq_end=[1,1,1,0,0,0,1,1];
 
-mes = [1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1];
+mes = [0,0,0,0,0,0,0,0,0,1,0,0,0,0,1,1,1];
 
 seq_start = sprintf('%d',seq_start);
 seq_end = sprintf('%d',seq_end);
@@ -26,17 +27,20 @@ message = horzcat(seq_start,mes,seq_end);
 % ossia seq_start + message + parity +seq_end 
 
 function [data, parityCheck] = unpackMessage(rawData)
-    DecRawData = bin2dec(rawData);
+    DecRawData = bin2dec(rawData)
     
-    mask = 0xFF00;      %   se 8 bit 
-    %mask = 0xFFFF00;       se 16 bit
+    % mask = '01FF00';      %   se 8 bit 
+    mask = '1FFFF00';       %se 16 bit
+    mask = hexToBinaryVector(mask);
+    mask = sprintf('%d',mask);
+    mask = bin2dec(mask);
 
     %Removing seq_start and seq_end
-    DecRawData = bitand(DecRawData,mask);
+    DecRawData = bitand(DecRawData,mask)
     DecRawData = bitshift(DecRawData,-8);
     parityBit = mod(DecRawData,2);
-    DecRawData = bitshift(DecRawData,-1);
-    data = DecRawData;
+    DecRawData = bitshift(DecRawData,-1)
+    data = char(DecRawData);
 
     sum = 0;
     for i = 1 : (length(rawData)-21)
