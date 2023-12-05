@@ -116,6 +116,7 @@ frame=s1(1:33);
 % ossia seq_start + message + parity +seq_end 
 
 function [data, parityCheck] = unpackMessage(rawData)
+
     rawData=rawData+'0';
     rawData=char(rawData);
     DecRawData = bin2dec(rawData);
@@ -131,7 +132,22 @@ function [data, parityCheck] = unpackMessage(rawData)
     DecRawData = bitshift(DecRawData,-8);
     parityBit = mod(DecRawData,2);
     DecRawData = bitshift(DecRawData,-1);
-    data = char(DecRawData);
+
+
+    mask1 = '00FF';
+    mask2 = 'FF00';
+    mask1 = hexToBinaryVector(mask1);
+    mask2 = hexToBinaryVector(mask2);
+    mask1 = sprintf('%d',mask1);
+    mask1 = bin2dec(mask1);
+    mask2 = sprintf('%d',mask2);
+    mask2 = bin2dec(mask2);
+
+    str(1) = bitand(DecRawData,mask1);   
+    str(2) = bitshift(bitand(DecRawData,mask2),-8);
+    
+    data = horzcat(char(str(1)),char(str(2)));
+
 
     sum = 0;
     for i = 1 : (length(rawData)-17)
