@@ -17,19 +17,33 @@ T_symbol = 1/SamplingRate; % Tempo di simbolo
 symbols=zeros(1,Nsimboli);
 seq_start=[1,1,0,1,0,1,0,1];
 seq_end=[1,1,1,0,0,0,1,1];
-
-mes = [0,0,0,0,0,0,0,0,0,1,0,0,0,0,1,1,1];
+data='ok'; %stringa che vogliamo trasmettere
+binArray=dec2bin(data,8)-'0'  %trasforma in matrice di int
+binArray=binArray.';
+binArray=reshape(binArray,1,8*length(data)); %da matrice a array
+%calcolo del parity bit
+sum=0;
+for i=1:length(binArray)
+        if binArray(i)==1
+        sum=sum+1;
+        end
+end
+if mod(sum,2)==0
+   parity=0;
+else parity=1;
+end 
+message=horzcat(seq_start,binArray,parity,seq_end); %concatena 
 
 % seq_start = sprintf('%d',seq_start);
 % seq_end = sprintf('%d',seq_end);
 % mes = sprintf('%d',mes);
 
-message = horzcat(seq_start,mes,seq_end);
+%message = horzcat(seq_start,mes,seq_end);
 % binArray=dec2bin(message,8)-'0';
 % binArray=binArray.';
 % binArray=reshape(binArray,1,33*8);
 % symbols=binArray;
-symbols=horzcat(message,zeros(1,967));
+symbols=horzcat(message,zeros(1,967)); %zero padding
 symbols=symbols.';
 
 % symbols(500)=1;
