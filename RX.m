@@ -1,3 +1,11 @@
+% ---------- packet 
+% 8 bit start sequence 
+% 8 bit packet number
+% 4 byte data
+% 1 byte crc
+% 8 bit end sequence 
+
+
 %% Ricevitore
 
 close all;
@@ -7,7 +15,7 @@ close all;
 Mypluto=findPlutoRadio
 idTX=append('sn:', Mypluto.SerialNum);
 
-%% Definizione Variabili
+% Definizione Variabili
 SamplingRate=1e6;
 T_symbol = 1/SamplingRate;   % Tempo di simbolo
 fc=2.475e9;
@@ -33,7 +41,7 @@ toc;
 
 % I campioni raccolti sono ora disponibili in rxWave
 
-%% Grafici Segnale Ricevuto
+% Grafici Segnale Ricevuto
 % this will plot the absolute value of the samples
 
 figure(1)
@@ -61,7 +69,7 @@ scatterplot(rxWave);
 
 
 
-%% Design del filtro a coseno rialzato
+% Design del filtro a coseno rialzato
 
 rxfilter = comm.RaisedCosineReceiveFilter( ...
   'Shape','Square root', ...
@@ -95,13 +103,13 @@ end
 figure;
 stem(lag_start,c)
 [i,h,frame]=findDelay(c,lag_start,sigdemod);
-[data,dataOK] = unpackMessage(frame);
+[data,dataOK,packNumer] = unpackMessage(frame);
 index=1;
-while index<6 && dataOK==0
+while index<6 
      fprintf('parity check N.%d not passed\n',index);
      c(h-33:h+33)=zeros(1,67);
      [i,h,frame]=findDelay(c,lag_start,sigdemod);
-     [data, dataOK] = unpackMessage(frame);
+     [data, dataOK,packNumer] = unpackMessage(frame);
      index=index+1;
 end
 if dataOK==1
@@ -114,41 +122,51 @@ end
 % pacchetto su cui bisogna fare l'unpack, 
 % ossia seq_start + message + parity +seq_end 
 
-function [data, parityCheck] = unpackMessage(rawData)
+function [data, crcCheck,packetNum] = unpackMessage(rawData)
+
+    crc8 = comm.CRCGenerator('Polynomial','z^8 + z^2 + z + 1','InitialConditions',1,'DirectMethod',true,'FinalXOR',1);
     rawData=rawData+'0';
     rawData=char(rawData);
     DecRawData = bin2dec(rawData);
-    % mask = '01FF00';      %   se 8 bit 
-    mask = '1FFFF00';       %se 16 bit
-    mask = hexToBinaryVector(mask);
-    mask = sprintf('%d',mask);
-    mask = bin2dec(mask);
-    %Removing seq_start and seq_end
-    DecRawData = bitand(DecRawData,mask);
-    DecRawData = bitshift(DecRawData,-8);
-    parityBit = mod(DecRawData,2);
-    DecRawData = bitshift(DecRawData,-1);
-    mask1 = '00FF';
-    mask2 = 'FF00';
-    mask1 = hexToBinaryVector(mask1);
-    mask2 = hexToBinaryVector(mask2);
-    mask1 = sprintf('%d',mask1);
-    mask1 = bin2dec(mask1);
-    mask2 = sprintf('%d',mask2);
-    mask2 = bin2dec(mask2);
 
-    str(2) = bitand(DecRawData,mask1);   
-    str(1) = bitshift(bitand(DecRawData,mask2),-8);
+    maskData = '0000000000FF0000';
+    maskDataRaw = '0000FFFFFFFF0000';
+    maskNumber = '00FF000000000000';
+    maskCRC = '000000000000FF00';
 
-    data = horzcat(char(str(1)),char(str(2)));
+    maskData = hexToBinaryVector(maskData);
+    maskDataRaw = hexToBinaryVector(maskDataRaw);
+    maskNumber = hexToBinaryVector(maskNumber);
+    maskCRC = hexToBinaryVector(maskCRC);
 
-    sum = 0;
-    for i = 1 : (length(rawData)-17)
-        sum = sum + mod(DecRawData,2);
-        DecRawData = bitshift(DecRawData,-1);
+    maskData = sprintf('%d',maskData);
+    maskDataRaw = sprintf('%d',maskDataRaw);
+    maskNumber = sprintf('%d',maskNumber);
+    maskCRC = sprintf('%d',maskCRC);
+
+    maskData = bin2dec(maskData);
+    maskDataRaw = bin2dec(maskDataRaw);
+    maskNumber = bin2dec(maskNumber);
+    maskCRC = bin2dec(maskCRC);
+
+    tmp = DecRawData;
+
+    for i=1:4  
+        str(5-i) = bitshift(bitand(tmp,maskData),-8);
+        tmp = bitshift(tmp,-8);
     end
 
-    parityCheck = (mod(sum,2) == parityBit);
+    data = horzcat(char(str(1)),char(str(2)),char(str(3)),char(str(4)));
+
+    packetNum = bitand(DecRawData,maskNumber);
+
+    crc = bitand(DecRawData,maskCRC);
+
+    rawData = bitand(DecRawData,maskDataRaw);
+    codeword = crc8(rawData);
+    crcCalc = codeword(end-8+1:end);
+
+    crcCheck = isequal(crcCalc,crc);
     
 end
 
