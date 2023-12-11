@@ -98,8 +98,9 @@ readData.packNumber = [];
       for k=1:length(rxNorm)
           if rxNorm(k)>0.5
               sigdemod(k)=1;
+          else 
+              sigdemod(k)=0;
           end
-          else sigdemod(k)=0;
       end
       [c,lag_start] = xcorr(sigdemod,seq_start);
       d=max(c);
