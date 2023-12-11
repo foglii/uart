@@ -12,6 +12,10 @@ SamplingRate=1e6;
 T_symbol = 1/SamplingRate;   % Tempo di simbolo
 fc=2.475e9;
 lung_sig = 2000;
+cmax=0;
+offset=0;
+seq_start=[1,1,0,1,0,1,0,1];
+seq_end=[1,1,1,0,0,0,1,1,];
 
 beta= 0.5; % Fattore di roll-off del filtro
 span = 6; % Lunghezza in simboli del filtro
@@ -61,43 +65,47 @@ scatterplot(rxWave);
 
 
 
-%% Design del filtro a coseno rialzato
 
-rxfilter = comm.RaisedCosineReceiveFilter( ...
-  'Shape','Square root', ...
-  'RolloffFactor',beta, ...
-  'FilterSpanInSymbols',span, ...
-  'InputSamplesPerSymbol',sps, ...
-  'DecimationFactor',sps);
 
-rx_signal=rxfilter(abs(rxWave)); 
+while cmax~=5 && offset<8
+      % Design del filtro a coseno rialzato
+      rxfilter = comm.RaisedCosineReceiveFilter( ...
+      'Shape','Square root', ...
+      'RolloffFactor',beta, ...
+      'FilterSpanInSymbols',span, ...
+      'InputSamplesPerSymbol',sps, ...
+      'DecimationFactor',sps,...
+      DecimationOffset=offset);
+      rx_signal=rxfilter(abs(rxWave)); 
+      rxNorm=abs(rx_signal)/max(abs(rx_signal));
+      %trovo il primo valore della sequenza
 
-%correzione delay rx
-%rx_signal= rx_signal((span*sps/2)+1:end);
+      for k=1:length(rxNorm)
+          if rxNorm(k)>0.5
+              sigdemod(k)=1;
+          else sigdemod(k)=0;
+          end
+      end
+      [c,lag_start] = xcorr(sigdemod,seq_start);
+      d=max(c);
+      cmax=round(d);
+      offset=offset+1;
 
+end
+offset=offset-1;
+fprintf('offset di decimazione = %d\n',offset);
 figure (4);
 t5=0:1:length(rx_signal)-1;
 plot(t5,rx_signal);
 title('Segnale Filtrato');
 xlabel('')
-rxNorm=abs(rx_signal)/max(abs(rx_signal));
-%trovo il primo valore della sequenza
-seq_start=[1,1,0,1,0,1,0,1];
-seq_end=[1,1,1,0,0,0,1,1,];
-for k=1:length(rxNorm)
-    if rxNorm(k)>0.5
-        sigdemod(k)=1;
-    else sigdemod(k)=0;
-    end
-end
-[c,lag_start] = xcorr(sigdemod,seq_start);
-%c=c/max(c);
+
 figure;
 stem(lag_start,c)
 [i,h,frame]=findDelay(c,lag_start,sigdemod);
 [data,dataOK] = unpackMessage(frame);
 index=1;
-while index<6 && dataOK==0
+while index<5 && dataOK==0
      fprintf('parity check N.%d not passed\n',index);
      c(h-33:h+33)=zeros(1,67);
      [i,h,frame]=findDelay(c,lag_start,sigdemod);
@@ -106,7 +114,7 @@ while index<6 && dataOK==0
 end
 if dataOK==1
       fprintf('passed parity check N.%d\n',index);
-else fprintf('exceeded possible tries\n');
+else fprintf('parity check N.%d not passed:exceeded possible tries\n',index);
 end
 
 %-------Unpack raw message function---------
@@ -157,6 +165,7 @@ function [i,h,frame]=findDelay(c,lag_start,sigdemod)
         seq_start=[1,1,0,1,0,1,0,1];
         [m,h] = max(c);
         i = lag_start(h);
+        figure
         plot(lag_start,c,[i i],[-0.5 1],'r:')
         text(i+100,0.5,['Lag: ' int2str(i)])
         ylabel('c')
