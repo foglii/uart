@@ -39,26 +39,26 @@ seq_start=[1,1,0,1,0,1,0,1];
 seq_end=[1,1,1,0,0,0,1,1];
 
 
-data_tx= 'Ciao mi chiamo Pippo'; %stringa che vogliamo trasmettere
+data_tx= 'Test per la comunicazione con piu di un pacchetto!!'; %stringa che vogliamo trasmettere
 
 
 for  i=1:(length(data_tx) / 4)
     
     packetStruct(i).numberBin = reshape(dec2bin(i, 8)-'0',1,8);
     packetStruct(i).dataRaw = extractBetween(data_tx,(i-1)*4 +1 , ((i-1)*4)+4); 
-    packetStruct(i).dataBin = reshape(dec2bin(char(packetStruct(i).dataRaw), 8)-'0',1,32);
+    packetStruct(i).dataBin = reshape((dec2bin(char(packetStruct(i).dataRaw), 8)-'0').',1,32);
     codeword = crc8(packetStruct(i).dataBin.');
     packetStruct(i).crc = codeword(end-8+1:end);
 
 end
 
 message = horzcat(seq_start,packetStruct(1).numberBin,packetStruct(1).dataBin,packetStruct(1).crc.',seq_end);
-message = horzcat(message,zeros(1,500-length(message))); %zero padding
+message = horzcat(message,zeros(1,250-length(message))); %zero padding
 
 for i=2:(length(data_tx) / 4)
 
   messageTmp = horzcat(seq_start,packetStruct(i).numberBin,packetStruct(i).dataBin,packetStruct(i).crc.',seq_end);
-  messageTmp = horzcat(messageTmp,zeros(1,500-length(messageTmp)));
+  messageTmp = horzcat(messageTmp,zeros(1,250-length(messageTmp)));
   message = horzcat(message,messageTmp); %concatena 
 
 end
