@@ -11,15 +11,17 @@ idTX=append('sn:', Mypluto.SerialNum);
 SamplingRate=1e6;
 T_symbol = 1/SamplingRate;   % Tempo di simbolo
 fc=2.475e9;
-lung_sig = 2000;
+lung_sig = 1000;
 cmax=0;
 offset=0;
-seq_start=[1,1,0,1,0,1,0,1];
-seq_end=[1,1,1,0,0,0,1,1,];
+barker = comm.BarkerCode("Length",7,"SamplesPerFrame",7);
+barker_code = barker().';
+%seq_start=[1,1,0,1,0,1,0,1];
+%seq_end=[1,1,1,0,0,0,1,1,];
 
 beta= 0.5; % Fattore di roll-off del filtro
-span = 6; % Lunghezza in simboli del filtro
-sps = 8;  % Campioni per simbolo (oversampling factor)
+span = 1; % Lunghezza in simboli del filtro
+sps = 16;  % Campioni per simbolo (oversampling factor)
 % Ricevitore PLuto
 rxPluto = sdrrx('Pluto','RadioID',...
     "usb:0",'CenterFrequency',fc,...
@@ -28,73 +30,47 @@ rxPluto = sdrrx('Pluto','RadioID',...
      'OutputDataType','single',...
      'BasebandSampleRate',SamplingRate,...
      'ShowAdvancedProperties',1,...
-     'FrequencyCorrection',100);
-
-   
+     'FrequencyCorrection',0);
+cmax=0;
+counter=0;
+while cmax~=3 && counter<3  
  tic;   
-[rxWave,rx_meta]=capture(rxPluto,80000);
+[rxWave,rx_meta]=capture(rxPluto,80000); %ogni 8000 campioni c'è una 
+% ripetizione quindi sono 100 volte
 toc;
-
-% I campioni raccolti sono ora disponibili in rxWave
-
-%% Grafici Segnale Ricevuto
-% this will plot the absolute value of the samples
-
-figure(1)
-n1 = (0:length(rxWave)-1)/(lung_sig*sps);
-plot(n1,rxWave);
-title('Segnale Ricevuto')
-grid on;
-title('Segnale Ricevuto');
-xlabel('Numero Trasmissioni');
-ylabel('Valori');
-axis("padded");
-
-
-
-figure(2);
-n1 = (0:length(rxWave)-1)/(lung_sig*sps);
-plot(n1,abs(rxWave));
-grid on;
-title('Modulo del Segnale Ricevuto');
-xlabel('Numero di Trasmissioni');
-ylabel('Valori');
-axis("padded");
-
+rxWave=rxWave/mean(abs(rxWave));
+      figure;
+t5=0:1:length(rxWave)-1;
+plot(t5,rxWave);
+title('RxWave');
 scatterplot(rxWave);
 M=2;
 
 constdiagram = comm.ConstellationDiagram( ...
     'ReferenceConstellation',pammod(0:M-1,M), ...
-    'SamplesPerSymbol',1, ...
+    'SamplesPerSymbol',sps, ...
     'SymbolsToDisplaySource','Property', ...
-    'SymbolsToDisplay',2000, ...
-    'XLimits',[-3 3], ...
-    'YLimits',[-3 3]);
-
-%GENERO BLOCCO DI FUNZIONI PER LA SINCRONIZZAZIONE
+    'SymbolsToDisplay',10000, ...
+    'XLimits',[-1.5 1.5], ...
+    'YLimits',[-1.5 1.5]);
 coarseSync = comm.CoarseFrequencyCompensator( ...
     'Modulation','PAM', ...
-    'FrequencyResolution',10, ...
-    'SampleRate', 1e6*sps);
+    'FrequencyResolution',1, ...
+    'SampleRate', 1e6,...
+    'SamplesPerSymbol',sps);
 
 fineSync = comm.CarrierSynchronizer( ...
     'DampingFactor',0.7, ...
-    'NormalizedLoopBandwidth',0.005, ...
+    'NormalizedLoopBandwidth',0.0005, ...
     'SamplesPerSymbol',sps, ...
     'Modulation','PAM');
-
-
-%APPLICO LE FUNZIONI DI SINCORNIZZAZIONE
-syncCoarse = coarseSync(rxWave);
-rxData = fineSync(syncCoarse);
-scatterplot(rxData);
-
-
-
-
-
-while cmax~=5 && offset<8
+[syncCoarse,ritardo] = coarseSync(rxWave);
+rxSyncSig = fineSync(syncCoarse);
+rxSyncSig=rxSyncSig/mean(abs(rxSyncSig));
+constdiagram([rxSyncSig(1:10000) rxSyncSig(70001:80000)])
+rxSyncSig=rxSyncSig(70001:end);
+offset=0;
+while cmax~=3 && offset<sps
       % Design del filtro a coseno rialzato
       rxfilter = comm.RaisedCosineReceiveFilter( ...
       'Shape','Square root', ...
@@ -102,32 +78,48 @@ while cmax~=5 && offset<8
       'FilterSpanInSymbols',span, ...
       'InputSamplesPerSymbol',sps, ...
       'DecimationFactor',sps,...
+      'Gain',10,...
       DecimationOffset=offset);
-      rx_signal=rxfilter(rxData); 
-      rxNorm=(rx_signal)./mean(abs(rx_signal));
+      rxFiltSig=rxfilter(rxSyncSig); 
+      
       %trovo il primo valore della sequenza
+      rxFiltSig=rxFiltSig/mean(rxFiltSig);
+    %barker_code=[0,0,0,1,1,0,1];
+   sigdemod = pamdemod(rxFiltSig,2).';
+ [c,lag_start] = xcorr(sigdemod,barker_code);
+ d=c((10000/sps):end);
+      cmax=max(d);
+      cmax=round(cmax) 
 
-      sigdemod=pamdemod(rxNorm,2);
-%       for k=1:length(rxNorm)
-%           if rxNorm(k)>0.5
-%               sigdemod(k)=1;
-%           else sigdemod(k)=0;
-%           end
-      %end
-      [c,lag_start] = xcorr(sigdemod,seq_start);
-      d=max(c);
-      cmax=round(d);
       offset=offset+1;
 
 end
 offset=offset-1;
 fprintf('offset di decimazione = %d\n',offset);
-figure (4);
-t5=0:1:length(rx_signal)-1;
-plot(t5,rx_signal);
+if cmax~=3 
+    counter=counter+1  
+end
+end
+% while cmax<3
+% [syncCoarse,ritardo] = coarseSync(rxWave);
+% rxSyncSig = fineSync(syncCoarse);
+% rxSyncSig=rxSyncSig/mean(abs(rxSyncSig));
+% constdiagram([rxSyncSig(1:10000) rxSyncSig(70001:80000)])
+% rxSyncSig=rxSyncSig(80001:end);
+% rxFiltSig=rxfilter(rxSyncSig); 
+% rxFiltSig=rxFiltSig/mean(rxFiltSig);
+% %barker_code=[0,0,0,1,1,0,1];
+% sigdemod = pamdemod(rxFiltSig,2).';
+%  [c,lag_start] = xcorr(sigdemod,barker_code);
+%  d=c(10000:end);
+%       cmax=max(d);
+%       cmax=round(cmax)
+% end 
+      figure (4);
+t5=0:1:length(rxFiltSig)-1;
+plot(t5,rxFiltSig);
 title('Segnale Filtrato');
 xlabel('')
-scatterplot(rxNorm)
 figure;
 stem(lag_start,c)
 [i,h,frame]=findDelay(c,lag_start,sigdemod);
@@ -136,6 +128,7 @@ index=1;
 while index<5 && dataOK==0
      fprintf('parity check N.%d not passed\n',index);
      c(h-33:h+33)=zeros(1,67);
+     data
      [i,h,frame]=findDelay(c,lag_start,sigdemod);
      [data, dataOK] = unpackMessage(frame);
      index=index+1;
@@ -144,7 +137,6 @@ if dataOK==1
       fprintf('passed parity check N.%d\n',index);
 else fprintf('parity check N.%d not passed:exceeded possible tries\n',index);
 end
-
 %-------Unpack raw message function---------
 % Data una stringa contenente solamente il
 % pacchetto su cui bisogna fare l'unpack, 
@@ -155,13 +147,13 @@ function [data, parityCheck] = unpackMessage(rawData)
     rawData=char(rawData);
     DecRawData = bin2dec(rawData);
     % mask = '01FF00';      %   se 8 bit 
-    mask = '1FFFF00';       %se 16 bit
+    mask = '01FFFF';       %se 16 bit
     mask = hexToBinaryVector(mask);
     mask = sprintf('%d',mask);
     mask = bin2dec(mask);
     %Removing seq_start and seq_end
     DecRawData = bitand(DecRawData,mask);
-    DecRawData = bitshift(DecRawData,-8);
+    %DecRawData = bitshift(DecRawData,-8);
     parityBit = mod(DecRawData,2);
     DecRawData = bitshift(DecRawData,-1);
     mask1 = '00FF';
@@ -179,7 +171,7 @@ function [data, parityCheck] = unpackMessage(rawData)
     data = horzcat(char(str(1)),char(str(2)));
 
     sum = 0;
-    for i = 1 : (length(rawData)-17)
+    for i = 1 : (length(rawData)-8)
         sum = sum + mod(DecRawData,2);
         DecRawData = bitshift(DecRawData,-1);
     end
@@ -189,9 +181,14 @@ function [data, parityCheck] = unpackMessage(rawData)
 end
 
 function [i,h,frame]=findDelay(c,lag_start,sigdemod)
-
-        seq_start=[1,1,0,1,0,1,0,1];
+        barker_code=[0,0,0,1,1,0,1];
+        %seq_start=[1,1,0,1,0,1,0,1];
+        
         [m,h] = max(c);
+        while h<length(c)/2
+           c(h)=0;
+           [m,h] = max(c);
+        end
         i = lag_start(h);
         figure
         plot(lag_start,c,[i i],[-0.5 1],'r:')
@@ -200,16 +197,19 @@ function [i,h,frame]=findDelay(c,lag_start,sigdemod)
         axis tight
         title('Cross-Correlation')
         %s1=sigdemod(i+1:end);
-        if i>=(10000-33)  %se il campione è a fine cattura
+        if i>=(10000-24)  %se il campione è a fine cattura
             i=0;
         end
-        frame = sigdemod(i+1:i+33);
+        frame = sigdemod((i+1):(i+24));
         figure;
         plot(frame,'x')
         hold on
-        plot(seq_start,'go')
+        plot(barker_code,'go')
         xlim([0,20]);
         hold off
 end
 
    
+
+
+
