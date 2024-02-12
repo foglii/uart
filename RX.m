@@ -140,10 +140,10 @@ stem(lag_start,cros)
 [readData(1).data,readData(1).crcOK,readData(1).packNumber] = unpackMessage(frame);
 index=1;
 
-%taglia la cross se c'è errore
+
 while true
     try
-     cros(h-64:h+64)=zeros(1,129);
+     cros(h-64:h+64)=zeros(1,129); %azzera cross
      [i,h,frame]=findDelay(cros,lag_start,sigdemod);
      [readData(index).data,readData(index).crcOK,readData(index).packNumber] = unpackMessage(frame);
      index = index+1;
@@ -154,12 +154,13 @@ while true
 end
 
 tmp = readData.packNumber;
-maxSeq = max(tmp);
+maxSeq = max(tmp); %numero totale pacchetti
 found = 0;
 indiceSeq = 1;
 
 word = '';
 
+%ricompone parola inviata
 while maxSeq >= indiceSeq
 
     found = 0;
@@ -185,7 +186,7 @@ while maxSeq >= indiceSeq
 
 end
 % if found == 1
-    word
+    word 
 % end
 
 %% Funzione che spacchetta messaggio
@@ -208,6 +209,7 @@ function [data, crcCheck,packetNum] = unpackMessage(rawData)
     maskNumber = '00FF000000000000';
     maskCRC = '000000000000FF00';
 
+%blocco conversione hex2dec................
     maskData = hexToBinaryVector(maskData);
     maskDataRaw = hexToBinaryVector(maskDataRaw);
     maskNumber = hexToBinaryVector(maskNumber);
@@ -222,6 +224,7 @@ function [data, crcCheck,packetNum] = unpackMessage(rawData)
     maskDataRaw = bin2dec(maskDataRaw);
     maskNumber = bin2dec(maskNumber);
     maskCRC = bin2dec(maskCRC);
+%.........................................
 
     tmp = DecRawData;
 
@@ -242,10 +245,11 @@ function [data, crcCheck,packetNum] = unpackMessage(rawData)
     codeword = crc8(de2bi(rawData).');
     crcCalc = codeword(end-8+1:end);
     bin2dec(sprintf('%d',crcCalc));
-    crcCheck = isequal(crcCalc,crc);
+    crcCheck = isequal(crcCalc,crc); %confronto tra i crc
     
 end
 
+%findDelay restituisce indice in cui inizia il pacchetto, valore corrispondente, pacchetto in binario (frame)
 function [i,h,frame]=findDelay(c,lag_start,sigdemod)
 
         seq_start=[1,1,0,1,0,1,0,1];
