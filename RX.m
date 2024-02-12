@@ -1,3 +1,5 @@
+%% Ricevitore
+
 % ---------- packet 
 % 8 bit start sequence 
 % 8 bit packet number
@@ -5,8 +7,6 @@
 % 1 byte crc
 % 8 bit end sequence 
 
-
-%% Ricevitore
 
 close all;
 %clear;
@@ -20,14 +20,18 @@ SamplingRate=1e6;
 T_symbol = 1/SamplingRate;   % Tempo di simbolo
 fc=2.475e9;
 lung_sig = 2000;
+
 cmax=0;
 offset=0;
+
+%sequenze conosciute
 seq_start=[1,1,0,1,0,1,0,1];
 seq_end=[1,1,1,0,0,0,1,1,];
 
 beta= 0.5; % Fattore di roll-off del filtro
 span = 6; % Lunghezza in simboli del filtro
 sps = 8;  % Campioni per simbolo (oversampling factor)
+
 % Ricevitore PLuto
 rxPluto = sdrrx('Pluto','RadioID',...
     "usb:0",'CenterFrequency',fc,...
@@ -38,17 +42,18 @@ rxPluto = sdrrx('Pluto','RadioID',...
      'ShowAdvancedProperties',1,...
      'FrequencyCorrection',100);
 
-   
  tic;   
 [rxWave,rx_meta]=capture(rxPluto,80000);
 toc;
 
+rxWave_m=abs(rxWave);
+
 % I campioni raccolti sono ora disponibili in rxWave
 
-% Grafici Segnale Ricevuto
+%% Grafici Segnale Ricevuto
 % this will plot the absolute value of the samples
 
-figure(1)
+figure
 n1 = (0:length(rxWave)-1)/(lung_sig*sps);
 plot(n1,rxWave);
 title('Segnale Ricevuto')
@@ -58,26 +63,25 @@ xlabel('Numero Trasmissioni');
 ylabel('Valori');
 axis("padded");
 
-
-
-figure(2);
+figure
 n1 = (0:length(rxWave)-1)/(lung_sig*sps);
-plot(n1,abs(rxWave));
+plot(n1,rxWave_m);
 grid on;
 title('Modulo del Segnale Ricevuto');
 xlabel('Numero di Trasmissioni');
 ylabel('Valori');
 axis("padded");
 
+pause
+
 scatterplot(rxWave);
+pause
 
 
-
-% Design del filtro a coseno rialzato
-
+%% Design del filtro a coseno rialzato
 
 while cmax~=5 && offset<8
-      % Design del filtro a coseno rialzato
+      
       rxfilter = comm.RaisedCosineReceiveFilter( ...
       'Shape','Square root', ...
       'RolloffFactor',beta, ...
@@ -85,48 +89,62 @@ while cmax~=5 && offset<8
       'InputSamplesPerSymbol',sps, ...
       'DecimationFactor',sps,...
       DecimationOffset=offset);
-      rx_signal=rxfilter(abs(rxWave)); 
-      rxNorm=abs(rx_signal)/max(abs(rx_signal));
+      
+      rx_signal=rxfilter(rxWave_m); 
+      rxNorm=abs(rx_signal)/max(abs(rx_signal)); %per avere intervallo tra 0 e 1
+      
       %trovo il primo valore della sequenza
+      
+      clear readData; 
+      
+      readData.data = [];
+      readData.crcOK = [];
+      readData.packNumber = [];
 
-clear readData;
-
-readData.data = [];
-readData.crcOK = [];
-readData.packNumber = [];
-
+    % Decodifica
       for k=1:length(rxNorm)
-          if rxNorm(k)>0.5
+          if rxNorm(k)>0.5 %soglia di decisione
               sigdemod(k)=1;
           else 
               sigdemod(k)=0;
           end
       end
-      [c,lag_start] = xcorr(sigdemod,seq_start);
-      d=max(c);
+
+    %trovo il primo valore della sequenza
+    %lag è l'indice di traslazione della convoluzione
+      [cros,lag_start] = xcorr(sigdemod,seq_start);
+      
+      d=max(cros);
       cmax=round(d);
       offset=offset+1;
-
 end
+
 offset=offset-1;
 fprintf('offset di decimazione = %d\n',offset);
-figure (4);
-t5=0:1:length(rx_signal)-1;
+
+figure
+%t5=0:1:length(rx_signal)-1;
+t5=(0:(length(rx_signal)-1))/(lung_sig);
 plot(t5,rx_signal);
-title('Segnale Filtrato');
-xlabel('')
+title('Segnale Rx Filtrato');
+xlabel('Numero di Trasmissioni')
+ylabel('Valori')
+axis padded
+grid on
 
 figure;
-stem(lag_start,c)
-[i,h,frame]=findDelay(c,lag_start,sigdemod);
+stem(lag_start,cros)
+
+
+[i,h,frame]=findDelay(,lag_start,sigdemod);
 [readData(1).data,readData(1).crcOK,readData(1).packNumber] = unpackMessage(frame);
 index=1;
 
-
+%taglia la cross se c'è errore
 while true
     try
-     c(h-64:h+64)=zeros(1,129);
-     [i,h,frame]=findDelay(c,lag_start,sigdemod);
+     cros(h-64:h+64)=zeros(1,129);
+     [i,h,frame]=findDelay(cros,lag_start,sigdemod);
      [readData(index).data,readData(index).crcOK,readData(index).packNumber] = unpackMessage(frame);
      index = index+1;
     catch
@@ -170,7 +188,9 @@ end
     word
 % end
 
-%-------Unpack raw message function---------
+%% Funzione che spacchetta messaggio
+% installa data aquisition toolbox
+
 % Data una stringa contenente solamente il
 % pacchetto su cui bisogna fare l'unpack, 
 % ossia seq_start + message + parity +seq_end 
@@ -179,9 +199,9 @@ end
 function [data, crcCheck,packetNum] = unpackMessage(rawData)
 
     crc8 = comm.CRCGenerator('Polynomial','z^8 + z^2 + z + 1','InitialConditions',1,'DirectMethod',true,'FinalXOR',1);
-    rawData=rawData+'0';
-    rawData=char(rawData);
-    DecRawData = bin2dec(rawData);
+    rawData=rawData+'0';  % si passa a valore ascii
+    rawData=char(rawData); % cambia ascii in char binario
+    DecRawData = bin2dec(rawData); %char in decimale
 
     maskData = '0000000000FF0000';
     maskDataRaw = '0000FFFFFFFF0000';
