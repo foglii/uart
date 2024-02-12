@@ -136,7 +136,7 @@ figure;
 stem(lag_start,cros)
 
 
-[i,h,frame]=findDelay(,lag_start,sigdemod);
+[i,h,frame]=findDelay(cros,lag_start,sigdemod);
 [readData(1).data,readData(1).crcOK,readData(1).packNumber] = unpackMessage(frame);
 index=1;
 
