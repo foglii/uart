@@ -1,4 +1,4 @@
-  %% Trasmettitore
+%% Trasmettitore 4 PAM
 
 close all;
 clear;
@@ -16,15 +16,15 @@ T_symbol = 1/SamplingRate; % Tempo di simbolo
 
 % Filtro
 beta= 0.2; % Fattore di roll-off del filtro
-span =7; % Lunghezza in simboli del filtro
-sps = 8;  % Campionamenti per simbolo (oversampling factor)
+span =1; % Lunghezza in simboli del filtro
+sps = 16;  % Campionamenti per simbolo (oversampling factor)
 
 % Messaggio 
 symbols=zeros(1,Nsimboli);
 barker = comm.BarkerCode("Length",7,"SamplesPerFrame",7);
 barker_code = barker().';
 %seq_start=[1,1,0,1,0,1,0,1];
-seq_end=[1,1,1,0,0,0,1,1];
+%seq_end=[1,1,1,0,0,0,1,1];
 
 data_tx='hi'; %stringa che vogliamo trasmettere
 binArray=dec2bin(data_tx,8)-'0';  %trasforma decimale in binario 
@@ -47,10 +47,15 @@ if mod(sum,2)==0 %mod resto della divisione sum/2 per def di parity
    parity=0;
 else parity=1;
 end 
- 
-message=horzcat(binArray,parity); %concatena
+message=horzcat((barker_code+1)/2,binArray,parity);
+count=1;
+binArray4Pam=zeros(1,ceil(length(message)/2));
+for k=1:2:length(message)-1
+    binArray4Pam(count)=message(k)*2+message(k+1);
+    count=count+1;
+end
 %symbols=horzcat(message,zeros(1,1000-(length(message))))
-symbols=message;
+symbols=binArray4Pam;
 
 %symbols=horzcat(message,zeros(1,1000-(length(message)+barker.Length))); %zero padding
 symbols=symbols.'; %cosi rimane vettore colonna
@@ -59,34 +64,10 @@ symbols=symbols.'; %cosi rimane vettore colonna
 % seq_end = sprintf('%d',seq_end);
 % mes = sprintf('%d',mes);
 %% Creazione segnale PAM
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-sig=pammod(symbols,2);
-sig=vertcat(barker_code.',sig,zeros(3,1));
-sig2=sig;
-% while length(sig2)<10000
-%     sig2=vertcat(sig2,sig);
-% end
-% sig2=vertcat(sig2,zeros(10000,1));
+sig=qammod(symbols,4);
+%sig=vertcat(barker_code.',sig);
 %sig=(sig+1)/2; %rendiamo la modulazione unipodale
-sig_c=complex(sig2); 
+sig_c=complex(sig);
 
 figure
 stem(sig_c,'filled')
@@ -137,7 +118,7 @@ grid on
 pause
 
 %correzione delay tx
-%tx_signal= tx_signal((span*sps/2)+1:end);
+tx_signal= tx_signal((span*sps/2)+1:end);
 
 figure
 t3=[0:1:length(tx_signal)-1];
