@@ -47,7 +47,7 @@ packet_struct.crc = [];
 packet_struct.crcNum = [];
 
 
-data_tx= 'grandeeeee'; %stringa che vogliamo trasmettere
+data_tx= 'prova1234567'; %stringa che vogliamo trasmettere
 
 
 for  i=1:(ceil(length(data_tx) / 4))
