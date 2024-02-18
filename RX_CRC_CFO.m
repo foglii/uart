@@ -9,6 +9,7 @@
 
 
 close all;
+load preamble.mat
 %clear;
 
 % Specifiche Adalm Pluto
@@ -78,6 +79,8 @@ M=2;
 
 constdiagram = comm.ConstellationDiagram( ...
     'ReferenceConstellation',pammod(0:M-1,M), ...
+    'ChannelNames',{'Before convergence','After convergence'}, ...
+    'ShowLegend',true, ...
     'SamplesPerSymbol',sps, ...
     'SymbolsToDisplaySource','Property', ...
     'SymbolsToDisplay',10000, ...
@@ -158,36 +161,56 @@ hold on, grid on,
 plot(real(sig_c));
 
 
-
-constDiagram = comm.ConstellationDiagram( ...
-    'ReferenceConstellation',pammod(0:M-1,M), ...
-    'XLimits',[-1.5 1.5], ...
-    'YLimits',[-1.5 1.5]);
+ 
+ constDiagram = comm.ConstellationDiagram( ...
+     'ReferenceConstellation',pammod(0:M-1,M), ...
+    'ChannelNames',{'Sequenza Filtrata'}, ...
+    'ShowLegend',true, ...    
+     'XLimits',[-1.5 1.5], ...
+     'YLimits',[-1.5 1.5]);
 
 
 constDiagram(rxFiltSig)
-sigdemod=pamdemod(rxFiltSig(span+1:end),2);
+sigdemod=pamdemod(rxFiltSig(span+1:end),2).';
 clear readData; 
 readData = struct; 
 
 readData.packNumber = [];      
 readData.data = [];
 readData.crcOK = [];
+readData.i=[];
+readData.flag=[];
+frame=sigdemod(1:72);
+sigdemod_f=sigdemod;
+sigdemod_f(1:72)=zeros(1,72);
+i=1;
+for index=1:floor((length(sigdemod)/72)-1)
 
-for i=0:72:length(sigdemod)-72
-frame=sigdemod(1+i:72+i).';
-index=1+i/72;
-[readData(index).packNumber, readData(index).data, readData(index).crcOK] = unpackMessage(frame);
+    readData(index).i=i;
+    [readData(index).packNumber, readData(index).data, readData(index).crcOK] = unpackMessage(frame);
+    readData(index).flag=0;
+    [i,sigdemod_f,frame]=findDelay(seq_start,sigdemod_f);
+    if frame==0
+         [i,sigdemod_f,frame]=findDelay(seq_start,sigdemod_f);
+    end
+   
+
 end
+% for i=0:72:length(sigdemod)-72
+%     
+% frame=sigdemod(1+i:72+i).';
+% index=1+i/72;
+% [readData(index).packNumber, readData(index).data, readData(index).crcOK] = unpackMessage(frame);
+% end
 
 %trova numero pacchetti totale 
-for index=1:floor(length(sigdemod)/72)
+Npack = readData(1).packNumber; 
+for index=2:floor((length(sigdemod)/72)-1)
     
     if (readData(index).crcOK == 1)
-        Npack = readData(index).packNumber; 
         
         if (readData(index).packNumber>Npack)
-             Npack = readData(index).packetNumber;
+             Npack = readData(index).packNumber;
         end      
     end
 end
@@ -197,11 +220,11 @@ index = 1;
 word = '';
 while index<=Npack
     
-    while (in<=floor(length(rxFiltSig)/72))
+    while in<=floor((length(sigdemod)/72)-1)
 
         if (readData(in).crcOK == 1 & readData(in).packNumber == index)
                 word = [ word readData(in).data]; %concatena tutte le parole in base al loro indice 
-                
+                readData(in).flag=1;
                 index= index + 1;
                 in=1;
                   
@@ -213,6 +236,21 @@ while index<=Npack
 end
 
 fprintf('Hai ricevuto:\n %s', word)
+%%EVM
+
+counter=0;
+for n=1:length(readData)
+    if readData(n).flag==1
+     counter=counter+1;
+     A=real(rxFiltSig(span+2+readData(n).i:span+readData(n).i+73));
+     B=imag(rxFiltSig(span+2+readData(n).i:span+readData(n).i+73));
+     dist1(counter,1:72)=sqrt((1-A).^2+B.^2);
+     dist_1(counter,1:72)=sqrt((-1-A).^2+B.^2);
+    end
+end
+evm=min(dist1,dist_1);
+evm_medio=mean(reshape(evm.',1,Npack*72))
+
 
 
 
@@ -350,27 +388,31 @@ function [packetNum, data, crcCheck] = unpackMessage(rawData)
 end
 % 
 % 
-% % [i,h,frame]=findDelay(cros,i_cros,sigdemod);
-% function [i,h,frame]=findDelay(c,c_lag,sigdemod)
-% 
-%         seq_start=[1,1,0,1,0,1,0,1];
-%         [m,h] = max(c);
-%         i = c_lag(h);
-%         %figure
-%         % plot(lag_start,c,[i i],[-0.5 1],'r:')
+% [i,h,frame]=findDelay(cros,seq_start,sigdemod);
+%%
+function [i,sigdemod,frame]=findDelay(seq_start,sigdemod)
+        [c,c_lag]=xcorr(sigdemod,seq_start);
+        [m,h] = max(c);
+        i = c_lag(h);
+        if i<length(sigdemod)-72
+        
+%         figure
+%         plot(c_lag,c,[i i],[-0.5 1],'r:')
 %         text(i+100,0.5,['Lag: ' int2str(i)])
 %         ylabel('c')
 %         axis tight
 %         title('Cross-Correlation')
-%         %s1=sigdemod(i+1:end);
-%         if i>=(10000-64)  %se il campione è a fine cattura
-%             i=0;
-%         end
-%         frame = sigdemod(i+1:i+64);
-%         % figure;
-%         % % plot(frame,'x')
-%         % hold on
-%         % % plot(seq_start,'go')
-%         % xlim([0,20]);
-%         % hold off
-%end
+        %s1=sigdemod(i+1:end);
+       
+        frame = sigdemod(i+1:i+72);
+        else 
+           frame=zeros(1,72);
+        end
+         sigdemod(i+1:i+16)=zeros(1,16);
+        % figure;
+        % % plot(frame,'x')
+        % hold on
+        % % plot(seq_start,'go')
+        % xlim([0,20]);
+        % hold off
+end
