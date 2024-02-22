@@ -20,8 +20,6 @@ idTX=append('sn:', Mypluto.SerialNum);
 % Definizione Parametri
 SamplingRate=1e6; % Frequenza di campionamento (Hz)
 fc=2.475e9;
-Nsimboli=1000;
-lung_sig = 2000;
 T_symbol = 1/SamplingRate; % Tempo di simbolo
 
 % Filtro
@@ -31,8 +29,6 @@ sps = 8;  % Campionamenti per simbolo (oversampling factor)
 
 % Messaggio
 crc8 = comm.CRCGenerator('Polynomial','z^8 + z^2 + z + 1');
-
-symbols=zeros(1,Nsimboli);
 barker = comm.BarkerCode("Length",13,"SamplesPerFrame",16);
 seq_start = pamdemod(barker().',2);
 %seq_start=[1,1,0,1,0,1,0,1];
@@ -48,7 +44,7 @@ packet_struct.crc = [];
 packet_struct.crcNum = [];
 
 
-data_tx= 'Mamma mia Pizzeria'; %stringa che vogliamo trasmettere
+data_tx= 'Se nel mondo ci fosse un po di bene e ognuno si considerasse suo fratello'; %stringa che vogliamo trasmettere
 if mod(length(data_tx),4)~=0
     data_tx=pad(data_tx,(length(data_tx)+4-mod(length(data_tx),4)))
 end
