@@ -67,7 +67,7 @@ title('Segnale Ricevuto')
 grid on;
 title('Segnale Ricevuto');
 xlabel('tempo in ms');
-ylabel('Valori');
+ylabel('Ampiezza');
 axis("padded");
 
 pause
