@@ -20,7 +20,6 @@ idTX=append('sn:', Mypluto.SerialNum);
 
 % Definizione Variabili
 SamplingRate=1e6;
-T_symbol = 1/SamplingRate;   % Tempo di simbolo
 fc=2.475e9;
 lung_sig = 72;
 
