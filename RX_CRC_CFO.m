@@ -267,7 +267,7 @@ end
 
 evm=min(dist1,dist_1);
 figure;
-bar(evm.','DisplayName','evm', color ="#7E2F8E")
+bar(evm.','DisplayName','evm')
 evm_medio=mean(reshape(evm.',1,Npack*72))
 %%MER
 mer=comm.MER(ReferenceSignalSource="Estimated from reference constellation", ...
