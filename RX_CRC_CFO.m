@@ -136,9 +136,14 @@ rxfilter = comm.RaisedCosineReceiveFilter( ...
 %controllo se ricevo girato di 180° con il preambolo e poi correggo 
 %plot della parte iniziale
 a=rxSyncSig(sample_shift:sample_shift+length(preamble)); 
-figure, %abbellisci
+figure
 plot(real(a)) % -a perchè mi viene girata di 180°    
-hold on, grid on,
+hold on
+grid on
+title('Confronto segnale Ricevuto con Preambolo');
+%xlabel('');
+%ylabel('');
+axis("padded");
 plot(real(preamble))
 
 rxFiltSig=rxfilter(rxSyncSig(sample_shift:end)); 
@@ -177,8 +182,8 @@ readData = struct;
 readData.packNumber = [];      
 readData.data = [];
 readData.crcOK = [];
-readData.i=[]; %abbellisci
-readData.flag=[];
+readData.delay=[]; 
+readData.scelto=[];
 
 frame=sigdemod(1:72); 
 sigdemod_f=sigdemod;
@@ -187,9 +192,9 @@ sigdemod_f(1:72)=zeros(1,72);
 delay=1;
 for index=1:floor((length(sigdemod)/72)-1)
 
-    readData(index).i=delay;
+    readData(index).delay=delay;
     [readData(index).packNumber, readData(index).data, readData(index).crcOK] = unpackMessage(frame);
-    readData(index).flag=0;
+    readData(index).scelto=0;
     [delay,sigdemod_f,frame]=findDelay(seq_start,sigdemod_f);
     if frame==0
          [delay,sigdemod_f,frame]=findDelay(seq_start,sigdemod_f);
@@ -225,7 +230,7 @@ while index<=Npack
 
         if (readData(in).crcOK == 1 & readData(in).packNumber == index)
                 word = [ word readData(in).data]; %concatena tutte le parole in base al loro indice 
-                readData(in).flag=1;
+                readData(in).scelto=1;
                 index= index + 1;
                 in=0;
                   
@@ -239,34 +244,37 @@ while index<=Npack
         break;
     else 
         sbagliato=false;
-    end
-      
+    end  
 end
 if sbagliato==false
 fprintf('Hai ricevuto:\n %s', word)
 end
+
 %% Prestazioni
-%%EVM
+%EVM
 evm=[];
+
 counter=0;
 for n=1:length(readData)
-    if readData(n).flag==1
+    if readData(n).scelto==1
      counter=counter+1;
-     A=real(rxFiltSig(span+2+readData(n).i:span+readData(n).i+73));
-     B=imag(rxFiltSig(span+2+readData(n).i:span+readData(n).i+73));
+     A=real(rxFiltSig(span+2+readData(n).delay:span+readData(n).i+73));
+     B=imag(rxFiltSig(span+2+readData(n).delay:span+readData(n).i+73));
      dist1(counter,1:72)=sqrt((1-A).^2+B.^2);
      dist_1(counter,1:72)=sqrt((-1-A).^2+B.^2);
     end
 end
+
 evm=min(dist1,dist_1);
 figure;
-bar(evm.','DisplayName','evm')
+bar(evm.','DisplayName','evm', color ="#7E2F8E")
 evm_medio=mean(reshape(evm.',1,Npack*72))
 %%MER
 mer=comm.MER(ReferenceSignalSource="Estimated from reference constellation", ...
     ReferenceConstellation=pammod(0:1,2));
 MER=mer(rxFiltSig(span+1:end));
 fprintf('MER=%f dB',MER)
+
 
 %% Funzione che spacchetta messaggio
 %Dato un frame di bit ne estrae il numero del pacchetto, i dati e controlla
