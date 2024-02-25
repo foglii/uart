@@ -13,14 +13,13 @@ load preamble.mat
 
 %preamble=txNorm_c(1:sps*length(seq_start));
 %clear;
-
+%% 
 % Specifiche Adalm Pluto
 Mypluto=findPlutoRadio
 idTX=append('sn:', Mypluto.SerialNum);
 
 % Definizione Variabili
 SamplingRate=1e6;
-T_symbol = 1/SamplingRate;   % Tempo di simbolo
 fc=2.475e9;
 lung_sig = 72;
 
@@ -47,18 +46,18 @@ rxWave=capture(rxPluto,80000);
 
 toc;
 
+%% Grafici Segnale Ricevuto
 %aggiungere legenda
 t5=0:1:length(rxWave)-1;
 figure,
-title('RxWave');
 plot(t5,real(rxWave),t5,imag(rxWave));
+title('RxWave');
+legend('Immaginaria', 'Reale');
 
 
 rxWave=rxWave/mean(abs(rxWave));
 
 % I campioni raccolti sono ora disponibili in rxWave
-
-%% Grafici Segnale Ricevuto
 figure
 n1= 1000*(0:length(rxWave)-1)*(sps/SamplingRate);  %controllare se è giusto
 %n1 = (0:length(rxWave)-1)/(lung_sig*sps);
@@ -67,11 +66,12 @@ title('Segnale Ricevuto')
 grid on;
 title('Segnale Ricevuto');
 xlabel('tempo in ms');
-ylabel('Valori');
+ylabel('Ampiezza');
 axis("padded");
 
 pause
 scatterplot(rxWave);
+title('rxWave');
 pause
 
 constdiagram = comm.ConstellationDiagram( ...
@@ -99,9 +99,8 @@ fineSync = comm.CarrierSynchronizer( ...
 [syncCoarse,ritardo] = coarseSync(rxWave);
 
 rxSyncSig = fineSync(syncCoarse);
-rxSyncSig=rxSyncSig/mean(abs(rxSyncSig));
-
-constdiagram([rxSyncSig(1:10000) rxSyncSig(70001:80000)])
+rxSyncSig=rxSyncSig/mean(abs(rxSyncSig));;
+constdiagram([rxSyncSig(1:10000) rxSyncSig(70001:80000)]);
 %prendo l'ultima parte del segnale, perchè più sincronizzata
 rxSyncSig=rxSyncSig(60001:end); 
 
@@ -109,7 +108,8 @@ rxSyncSig=rxSyncSig(60001:end);
 [cros,lag_start] = xcorr(rxSyncSig,preamble);
 
 figure
-plot(abs(cros)) %abbellire
+plot(abs(cros))
+title('Crosscorrelazione tra segnale e preambolo')
 
 [peak,idx_shift]=max(abs(cros));  % Trovo il picco della xcorr
 
@@ -136,30 +136,37 @@ rxfilter = comm.RaisedCosineReceiveFilter( ...
 %controllo se ricevo girato di 180° con il preambolo e poi correggo 
 %plot della parte iniziale
 a=rxSyncSig(sample_shift:sample_shift+length(preamble)); 
-figure, %abbellisci
+figure
 plot(real(a)) % -a perchè mi viene girata di 180°    
-hold on, grid on,
+hold on
+grid on
+title('Confronto segnale Ricevuto con Preambolo');
+%xlabel('');
+%ylabel('');
+axis("padded");
 plot(real(preamble))
 
-rxFiltSig=rxfilter(rxSyncSig(sample_shift:end)); 
+rxFiltSig=rxfilter(rxSyncSig(sample_shift-((span*sps/2)+1):end)); %correggo ritardo filtro
 [~,b]=biterr(pamdemod(rxFiltSig((span+1):(span+16)),2),pamdemod(seq_start,2).');
 if b>0.5
     rxFiltSig=-rxFiltSig;
 end
 
 
+
 rxFiltSig=rxFiltSig/mean(abs(rxFiltSig));
 
-% Check sull'allineamento del segnale (con buon SNR si vede chiaramente)
+%Check sull'allineamento del segnale (con buon SNR si vede chiaramente)
 % figure
 % plot(real(rxFiltSig((span+1):end)))
 % hold on, grid on,
 % plot(real(sig_c));
+% title('Check allineamento del segnale')
 
 
  %plot post filtraggio 
  constDiagram = comm.ConstellationDiagram( ...
-     'ReferenceConstellation',pammod(0:M-1,M), ...
+     'ReferenceConstellation',pammod(0:1,2), ...
     'ChannelNames',{'Sequenza Filtrata'}, ...
     'ShowLegend',true, ...    
      'XLimits',[-1.5 1.5], ...
@@ -167,8 +174,9 @@ rxFiltSig=rxFiltSig/mean(abs(rxFiltSig));
 
 
 constDiagram(rxFiltSig)
-
-sigdemod=pamdemod(rxFiltSig(span+1:end),2).';
+title('Sequenza Filtrata')
+%sigdemod=pamdemod(rxFiltSig(1:end),2).';
+ sigdemod=pamdemod(rxFiltSig(span+1:end),2).';
 
 %% Spacchettamento
 clear readData; 
@@ -177,8 +185,8 @@ readData = struct;
 readData.packNumber = [];      
 readData.data = [];
 readData.crcOK = [];
-readData.i=[]; %abbellisci
-readData.flag=[];
+readData.delay=[]; 
+readData.scelto=[];
 
 frame=sigdemod(1:72); 
 sigdemod_f=sigdemod;
@@ -187,9 +195,9 @@ sigdemod_f(1:72)=zeros(1,72);
 delay=1;
 for index=1:floor((length(sigdemod)/72)-1)
 
-    readData(index).i=delay;
+    readData(index).delay=delay;
     [readData(index).packNumber, readData(index).data, readData(index).crcOK] = unpackMessage(frame);
-    readData(index).flag=0;
+    readData(index).scelto=0;
     [delay,sigdemod_f,frame]=findDelay(seq_start,sigdemod_f);
     if frame==0
          [delay,sigdemod_f,frame]=findDelay(seq_start,sigdemod_f);
@@ -197,12 +205,6 @@ for index=1:floor((length(sigdemod)/72)-1)
    
 
 end
-% for i=0:72:length(sigdemod)-72
-%     
-% frame=sigdemod(1+i:72+i).';
-% index=1+i/72;
-% [readData(index).packNumber, readData(index).data, readData(index).crcOK] = unpackMessage(frame);
-% end
 
 %trova numero pacchetti totale 
 Npack = readData(1).packNumber; 
@@ -225,7 +227,7 @@ while index<=Npack
 
         if (readData(in).crcOK == 1 & readData(in).packNumber == index)
                 word = [ word readData(in).data]; %concatena tutte le parole in base al loro indice 
-                readData(in).flag=1;
+                readData(in).scelto=1;
                 index= index + 1;
                 in=0;
                   
@@ -239,21 +241,21 @@ while index<=Npack
         break;
     else 
         sbagliato=false;
-    end
-      
+    end  
 end
 if sbagliato==false
 fprintf('Hai ricevuto:\n %s', word)
 end
 %% Prestazioni
-%%EVM
+%EVM
 evm=[];
+
 counter=0;
 for n=1:length(readData)
-    if readData(n).flag==1
+    if readData(n).scelto==1
      counter=counter+1;
-     A=real(rxFiltSig(span+2+readData(n).i:span+readData(n).i+73));
-     B=imag(rxFiltSig(span+2+readData(n).i:span+readData(n).i+73));
+     A=real(rxFiltSig(span+2+readData(n).delay:span+readData(n).delay+73));
+     B=imag(rxFiltSig(span+2+readData(n).delay:span+readData(n).delay+73));
      dist1(counter,1:72)=sqrt((1-A).^2+B.^2);
      dist_1(counter,1:72)=sqrt((-1-A).^2+B.^2);
     end
@@ -261,12 +263,16 @@ end
 evm=min(dist1,dist_1);
 figure;
 bar(evm.','DisplayName','evm')
-evm_medio=mean(reshape(evm.',1,Npack*72))
+grid on
+title('EVM')
+xlabel('posizione del bit nel pacchetto')
+evm_medio=sum(sum(evm))/numel(evm)
 %%MER
 mer=comm.MER(ReferenceSignalSource="Estimated from reference constellation", ...
     ReferenceConstellation=pammod(0:1,2));
 MER=mer(rxFiltSig(span+1:end));
 fprintf('MER=%f dB',MER)
+
 
 %% Funzione che spacchetta messaggio
 %Dato un frame di bit ne estrae il numero del pacchetto, i dati e controlla
