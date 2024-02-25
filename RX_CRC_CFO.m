@@ -246,6 +246,7 @@ end
 if sbagliato==false
 fprintf('Hai ricevuto:\n %s', word)
 end
+
 %% Prestazioni
 %EVM
 evm=[];
@@ -260,6 +261,7 @@ for n=1:length(readData)
      dist_1(counter,1:72)=sqrt((-1-A).^2+B.^2);
     end
 end
+
 evm=min(dist1,dist_1);
 figure;
 bar(evm.','DisplayName','evm')
