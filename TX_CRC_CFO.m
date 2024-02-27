@@ -3,7 +3,7 @@
 % ---------- packet 
 % 16 bit start sequence 
 % 8 bit packet number
-% 4 byte data
+% 4 byte data 
 % 1 byte crc
 % 8 bit end sequence 
 
@@ -20,7 +20,6 @@ idTX=append('sn:', Mypluto.SerialNum);
 % Definizione Parametri
 SamplingRate=1e6; % Frequenza di campionamento (Hz)
 fc=2.475e9;
-T_symbol = 1/SamplingRate; % Tempo di simbolo
 
 % Filtro
 beta= 0.5; % Fattore di roll-off del filtro
@@ -29,22 +28,21 @@ sps = 8;  % Campionamenti per simbolo (oversampling factor)
 
 % Messaggio
 crc8 = comm.CRCGenerator('Polynomial','z^8 + z^2 + z + 1');
+%sequenza con bassa correlazione fuori dal picco
 barker = comm.BarkerCode("Length",13,"SamplesPerFrame",16);
 seq_start = pamdemod(barker().',2);
-%seq_start=[1,1,0,1,0,1,0,1];
 seq_end=[1,1,1,0,0,0,1,1];
 
 %forma pacchetto come array di struct
 packet_struct = struct; 
-
 packet_struct.numberBin = [];
 packet_struct.dataRaw = [];
 packet_struct.dataBin = [];
 packet_struct.crc = [];
-packet_struct.crcNum = [];
+%packet_struct.crcNum = [];
 
 
-data_tx= 'Se nel mondo ci fosse un po di bene e ognuno si considerasse suo fratello'; %stringa che vogliamo trasmettere
+data_tx= 'Hello World! :D'; %stringa che vogliamo trasmettere
 if mod(length(data_tx),4)~=0
     data_tx=pad(data_tx,(length(data_tx)+4-mod(length(data_tx),4)))
 end
@@ -62,8 +60,6 @@ for  i=1:(ceil(length(data_tx) / 4))
         packet_struct(i).dataRaw = data_tx(((i-1)*4 +1):end);
         packet_struct(i).dataBin = reshape((dec2bin(char(packet_struct(i).dataRaw), 8)-'0').',1,[]);
         
-%         for z=0: (3 - (length(data_tx) - ((i-1)*4)))
-%             packet_struct(i).dataRaw = horzcat(packet_struct(i).dataRaw,' ')
     end
 
 
@@ -72,50 +68,24 @@ for  i=1:(ceil(length(data_tx) / 4))
     codeword = crc8(base_crc.');
     packet_struct(i).crc = codeword(end-8+1:end).';
    
-%     codeword = codeword(end-8+1:end);
-    packet_struct(i).crcNum = bin2dec(sprintf('%d',codeword(end-8+1:end)));
+   % packet_struct(i).crcNum = bin2dec(sprintf('%d',codeword(end-8+1:end)));
 
 end
 
 message = [seq_start packet_struct(1).numberBin packet_struct(1).dataBin packet_struct(1).crc seq_end];
-%message = horzcat(message,zeros(1,256-length(message))); %zero padding
 
 for i=2:(ceil(length(data_tx) / 4))
 
     messageTmp = [seq_start packet_struct(i).numberBin packet_struct(i).dataBin packet_struct(i).crc seq_end];
-    %messageTmp = horzcat(messageTmp,zeros(1,256-length(messageTmp)));
     message = [message messageTmp]; %concatena 
 
 end
 
-%trasforma decimale in binario 
-%in questo modo rimane una matrice di char quindi tolgo il valore di zero a
-%ogni casella per tornare ai double 1 e 0
-
-%da matrice leght data x 8 diventa matrice 1 x (leght data x 8)
-
-%calcolo del parity bit
-% sum=0;
-% for i=1:length(binArray)
-%         if binArray(i)==1 %conta gli uno
-%         sum=sum+1;
-%         end
-% end
-% if mod(sum,2)==0 %mod resto della divisione sum/2 per def di parity
-%    parity=0;
-% else parity=1;
-% end 
-
-
 symbols=message.'; %cosi rimane vettore colonna
 
-% seq_start = sprintf('%d',seq_start);
-% seq_end = sprintf('%d',seq_end);
-% mes = sprintf('%d',mes);
-
-% Creazione segnale PAM
+%% Creazione segnale PAM
 sig=pammod(symbols,2);
-%sig=(sig+1)/2; %rendiamo la modulazione unipodale
+%sig=vertcat(sig,zeros(4,1));
 sig_c=complex(sig);
 
 figure
@@ -176,7 +146,7 @@ plot(t3,tx_signal);
 axis("padded");
 title('Segnale Tx Filtrato');
 xlabel('Campioni');
-ylabel('Valori');
+ylabel('Ampiezza');
 
 pause
 
@@ -184,7 +154,7 @@ pause
 %variabile di supporto per grafico è segnale filtrato senza padding di
 %zeri
 tx_sig=txfilter(sig_c);
-tx_sig=tx_sig((span*sps/2)+1:end);
+tx_sig=vertcat(tx_sig((span*sps/2)+1:end),tx_sig(1:(span*sps/2)));
 
 figure
 t= 1000*(0:length(sig_c)-1)*(sps/SamplingRate); 
@@ -199,12 +169,12 @@ plot(to,tx_sig, 'b-');
 axis("padded");
 title('Segnale Generato e Filtrato');
 xlabel('Tempo in ms');
-ylabel('Valori');
+ylabel('Ampiezza');
 
 hold off;
 
 % Trasmissione tramite Adalm Pluto 
-txNorm=tx_signal/max(abs(tx_signal));
+txNorm=tx_sig/max(abs(tx_sig));
 txNorm_c=complex(txNorm);
 
 txPluto = sdrtx('Pluto',...
@@ -214,4 +184,3 @@ txPluto = sdrtx('Pluto',...
        'BasebandSampleRate',SamplingRate);
 
 transmitRepeat(txPluto,txNorm_c);
-%100k simb per secon
