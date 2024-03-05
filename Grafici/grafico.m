@@ -39,7 +39,18 @@ numberA(3) = 8;
 numberA(4) = 16;
 
 
-med = @(x) (1 - dataError(x,8)) .* (2 .* x + 9) + 2 .* (2*x+9) .* (dataError(x,8)) ./8;
+
+posErr = 0;
+for i = 0 : 1:16
+    posErr = posErr + 2.^i;
+end
+
+probError = posErr./ 2.^16
+
+
+
+
+med = @(x) (1 - dataError(x,8)) .* (2 .* x + 9) + 2 .* (2*x+9) .* (dataError(x,8)) ./ 8;
 
 bitMediN = @(a,b) ((1-(2.^(1 - a) - 2.^(1 - b))).*(2 .* a + b + 1) + ((2.^(1-a)-2.^(1 - b))).* 2 .*(2.*a + b + 1))./ b;
 
@@ -51,8 +62,8 @@ error1 = @(M,x) ((errorPAM(M)./log2(numberA(M))).*(2 .* x +9).*2.*bitMedi8(x)) +
 error2 = @(M,x) (1./((1- (errorPAM(2)./log2(numberA(2)))).^(2 .* x + M + 1))).*bitMediN(x,M);
 
 
-x = 1:1:10000; 
-y = 1:1:10000;
+x = 1:10:10000; 
+y = 1:10:10000;
 [X, Y] = meshgrid(x, y);
 
 figure(7)

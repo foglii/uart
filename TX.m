@@ -39,7 +39,7 @@ seq_start=[1,1,0,1,0,1,0,1];
 seq_end=[1,1,1,0,0,0,1,1];
 
 
-data_tx= 'Taskjdhajsgdjasjdgjagsdjh'; %stringa che vogliamo trasmettere
+data_tx= 'Albero Birillo'; %stringa che vogliamo trasmettere
 
 
 for  i=1:(ceil(length(data_tx) / 4))
