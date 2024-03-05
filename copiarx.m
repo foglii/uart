@@ -51,10 +51,8 @@ toc;
 t5=0:1:length(rxWave)-1;
 figure,
 plot(t5,real(rxWave),t5,imag(rxWave));
-title('Segnale Ricevuto');
-ylabel('Ampiezza');
-grid on
-legend('Reale', 'Immaginaria');
+title('RxWave');
+legend('Immaginaria', 'Reale');
 
 
 rxWave=rxWave/mean(abs(rxWave));
@@ -64,7 +62,7 @@ figure
 n1= 1000*(0:length(rxWave)-1)*(sps/SamplingRate);  %controllare se è giusto
 %n1 = (0:length(rxWave)-1)/(lung_sig*sps);
 plot(n1,rxWave);
-title('Parte Reale Segnale Ricevuto')
+title('Segnale Ricevuto')
 grid on;
 title('Segnale Ricevuto');
 xlabel('tempo in ms');
@@ -101,7 +99,7 @@ fineSync = comm.CarrierSynchronizer( ...
 [syncCoarse,ritardo] = coarseSync(rxWave);
 
 rxSyncSig = fineSync(syncCoarse);
-rxSyncSig=rxSyncSig/mean(abs(rxSyncSig));
+rxSyncSig=rxSyncSig/mean(abs(rxSyncSig));;
 constdiagram([rxSyncSig(1:10000) rxSyncSig(70001:80000)]);
 %prendo l'ultima parte del segnale, perchè più sincronizzata
 rxSyncSig=rxSyncSig(60001:end); 
@@ -336,7 +334,7 @@ end
 % 
 % 
 % [i,h,frame]=findDelay(cros,seq_start,sigdemod);
-
+%%
 function [i,sigdemod,frame]=findDelay(seq_start,sigdemod)
         [c,c_lag]=xcorr(sigdemod,seq_start);
         [m,h] = max(c);
