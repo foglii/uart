@@ -1,4 +1,4 @@
-%% Ricevitore
+ %% Ricevitore
 
 % ---------- packet 
 % 16 bit start sequence 
@@ -145,9 +145,10 @@ title('Confronto segnale Ricevuto con Preambolo');
 %ylabel('');
 axis("padded");
 plot(real(preamble))
+legend('rxSyncSig','preamble')
 
-rxFiltSig=rxfilter(rxSyncSig(sample_shift-((span*sps/2)+1):end)); %correggo ritardo filtro
-[~,b]=biterr(pamdemod(rxFiltSig((span+1):(span+16)),2),pamdemod(seq_start,2).');
+rxFiltSig=rxfilter(rxSyncSig(sample_shift+(span*sps/2)-1:end)); %correggo ritardo filtro
+[~,b]=biterr(pamdemod(rxFiltSig(1:16),2),pamdemod(seq_start,2).');
 if b>0.5
     rxFiltSig=-rxFiltSig;
 end
@@ -157,12 +158,11 @@ end
 rxFiltSig=rxFiltSig/mean(abs(rxFiltSig));
 
 %Check sull'allineamento del segnale (con buon SNR si vede chiaramente)
-% figure
-% plot(real(rxFiltSig((span+1):end)))
-% hold on, grid on,
-% plot(real(sig_c));
-% title('Check allineamento del segnale')
-
+figure
+plot(real(rxFiltSig(1:end)))
+hold on, grid on,
+plot(real(sig_c));
+title('Check allineamento del segnale')
 
  %plot post filtraggio 
  constDiagram = comm.ConstellationDiagram( ...
@@ -175,8 +175,8 @@ rxFiltSig=rxFiltSig/mean(abs(rxFiltSig));
 
 constDiagram(rxFiltSig)
 title('Sequenza Filtrata')
-%sigdemod=pamdemod(rxFiltSig(1:end),2).';
- sigdemod=pamdemod(rxFiltSig(span+1:end),2).';
+sigdemod=pamdemod(rxFiltSig(1,2).';
+% sigdemod=pamdemod(rxFiltSig(span+1:end),2).';
 
 %% Spacchettamento
 clear readData; 
@@ -255,8 +255,8 @@ counter=0;
 for n=1:length(readData)
     if readData(n).scelto==1
      counter=counter+1;
-     A=real(rxFiltSig(span+2+readData(n).delay:span+readData(n).delay+73));
-     B=imag(rxFiltSig(span+2+readData(n).delay:span+readData(n).delay+73));
+     A=real(rxFiltSig(1+readData(n).delay:readData(n).delay+73));
+     B=imag(rxFiltSig(1+readData(n).delay:readData(n).delay+73));
      dist1(counter,1:72)=sqrt((1-A).^2+B.^2);
      dist_1(counter,1:72)=sqrt((-1-A).^2+B.^2);
     end
@@ -272,7 +272,7 @@ evm_medio=sum(sum(evm))/numel(evm)
 %%MER
 mer=comm.MER(ReferenceSignalSource="Estimated from reference constellation", ...
     ReferenceConstellation=pammod(0:1,2));
-MER=mer(rxFiltSig(span+1:end));
+MER=mer(rxFiltSig(1:end));
 fprintf('MER=%f dB',MER)
 
 
