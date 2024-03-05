@@ -159,7 +159,7 @@ rxFiltSig=rxFiltSig/mean(abs(rxFiltSig));
 
 %Check sull'allineamento del segnale (con buon SNR si vede chiaramente)
 figure
-plot(real(rxFiltSig(1:end)))
+plot(real(rxFiltSig))
 hold on, grid on,
 plot(real(sig_c));
 title('Check allineamento del segnale')
