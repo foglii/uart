@@ -74,7 +74,6 @@ axis("padded");
 pause
 scatterplot(rxWave);
 title('rxWave');
-pause
 
 constdiagram = comm.ConstellationDiagram( ...
     'ReferenceConstellation',pammod(0:1,2), ...
@@ -177,7 +176,7 @@ title('Check allineamento del segnale')
 
 constDiagram(rxFiltSig)
 title('Sequenza Filtrata')
-sigdemod=pamdemod(rxFiltSig(1,2).';
+sigdemod=pamdemod(rxFiltSig.',2);
 % sigdemod=pamdemod(rxFiltSig(span+1:end),2).';
 
 %% Spacchettamento
@@ -257,8 +256,8 @@ counter=0;
 for n=1:length(readData)
     if readData(n).scelto==1
      counter=counter+1;
-     A=real(rxFiltSig(1+readData(n).delay:readData(n).delay+73));
-     B=imag(rxFiltSig(1+readData(n).delay:readData(n).delay+73));
+     A=real(rxFiltSig(1+span+readData(n).delay:span+readData(n).delay+73));
+     B=imag(rxFiltSig(span+1+readData(n).delay:span+readData(n).delay+73));
      dist1(counter,1:72)=sqrt((1-A).^2+B.^2);
      dist_1(counter,1:72)=sqrt((-1-A).^2+B.^2);
     end
