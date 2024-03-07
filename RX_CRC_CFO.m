@@ -148,7 +148,9 @@ axis("padded");
 plot(real(preamble))
 legend('rxSyncSig','preamble')
 
-rxFiltSig=rxfilter(rxSyncSig(sample_shift+(span*sps/2)-1:end)); %correggo ritardo filtro
+%rxFiltSig=rxfilter(rxSyncSig(sample_shift+(span*sps/2)-1:end)); %correggo ritardo filtro
+rxFiltSig=rxfilter(rxSyncSig(sample_shift-(span*sps/2)-1:end));
+rxFiltSig=rxFiltSig(span+1:end);
 [~,b]=biterr(pamdemod(rxFiltSig(1:16),2),pamdemod(seq_start,2).');
 if b>0.5
     rxFiltSig=-rxFiltSig;
@@ -256,8 +258,8 @@ counter=0;
 for n=1:length(readData)
     if readData(n).scelto==1
      counter=counter+1;
-     A=real(rxFiltSig(1+span+readData(n).delay:span+readData(n).delay+73));
-     B=imag(rxFiltSig(span+1+readData(n).delay:span+readData(n).delay+73));
+     A=real(rxFiltSig(1+readData(n).delay:readData(n).delay+72));
+     B=imag(rxFiltSig(1+readData(n).delay:readData(n).delay+72));
      dist1(counter,1:72)=sqrt((1-A).^2+B.^2);
      dist_1(counter,1:72)=sqrt((-1-A).^2+B.^2);
     end
