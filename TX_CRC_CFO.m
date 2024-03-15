@@ -42,22 +42,22 @@ packet_struct.crc = [];
 %packet_struct.crcNum = [];
 
 
-data_tx= 'Hello World! :D'; %stringa che vogliamo trasmettere
-if mod(length(data_tx),4)~=0
-    data_tx=pad(data_tx,(length(data_tx)+4-mod(length(data_tx),4)))
+data_tx= 'Lorem ipsum dolor sit amet, consectetur adipisci elit, sed eLorem ipsum dolor sit amet, consectetur adipisci elit, sed e'; %stringa che vogliamo trasmettere
+if mod(length(data_tx),6)~=0
+    data_tx=pad(data_tx,(length(data_tx)+6-mod(length(data_tx),6)))
 end
 
 
-for  i=1:(ceil(length(data_tx) / 4))
+for  i=1:(ceil(length(data_tx) / 6))
     
     packet_struct(i).numberBin = reshape(dec2bin(i, 8)-'0',[1,8]);
     
-    if ((i*4)<length(data_tx)) 
-        packet_struct(i).dataRaw = extractBetween(data_tx,(i-1)*4 +1,(i*4)); 
+    if ((i*6)<length(data_tx)) 
+        packet_struct(i).dataRaw = extractBetween(data_tx,(i-1)*6 +1,(i*6)); 
         packet_struct(i).dataBin = reshape((dec2bin(char(packet_struct(i).dataRaw), 8)-'0').',1,[]);
 
     else
-        packet_struct(i).dataRaw = data_tx(((i-1)*4 +1):end);
+        packet_struct(i).dataRaw = data_tx(((i-1)*6 +1):end);
         packet_struct(i).dataBin = reshape((dec2bin(char(packet_struct(i).dataRaw), 8)-'0').',1,[]);
         
     end
@@ -74,7 +74,7 @@ end
 
 message = [seq_start packet_struct(1).numberBin packet_struct(1).dataBin packet_struct(1).crc seq_end];
 
-for i=2:(ceil(length(data_tx) / 4))
+for i=2:(ceil(length(data_tx) / 6))
 
     messageTmp = [seq_start packet_struct(i).numberBin packet_struct(i).dataBin packet_struct(i).crc seq_end];
     message = [message messageTmp]; %concatena 
@@ -83,7 +83,7 @@ end
 
 symbols=message.'; %cosi rimane vettore colonna
 
-%% Creazione segnale PAM
+% Creazione segnale PAM
 sig=pammod(symbols,2);
 %sig=vertcat(sig,zeros(4,1));
 sig_c=complex(sig);
@@ -184,3 +184,4 @@ txPluto = sdrtx('Pluto',...
        'BasebandSampleRate',SamplingRate);
 
 transmitRepeat(txPluto,txNorm_c);
+%%

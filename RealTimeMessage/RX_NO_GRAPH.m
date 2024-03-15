@@ -7,8 +7,7 @@
 % 1 byte crc
 % 8 bit end sequence
 
-
-close all;
+function receive(app)
 load preamble.mat
 
 %preamble=txNorm_c(1:sps*length(seq_start));
@@ -46,44 +45,8 @@ rxWave=capture(rxPluto,80000);
 
 toc;
 
-%% Grafici Segnale Ricevuto
-%aggiungere legenda
-t5=0:1:length(rxWave)-1;
-figure,
-plot(t5,real(rxWave),t5,imag(rxWave));
-title('Segnale Ricevuto');
-ylabel('Ampiezza');
-grid on
-legend('Reale', 'Immaginaria');
-
 
 rxWave=rxWave/mean(abs(rxWave));
-
-% I campioni raccolti sono ora disponibili in rxWave
-figure
-n1= 1000*(0:length(rxWave)-1)*(sps/SamplingRate);  %controllare se è giusto
-%n1 = (0:length(rxWave)-1)/(lung_sig*sps);
-plot(n1,rxWave);
-title('Parte Reale Segnale Ricevuto')
-grid on;
-title('Segnale Ricevuto');
-xlabel('tempo in ms');
-ylabel('Ampiezza');
-axis("padded");
-
-pause
-scatterplot(rxWave);
-title('rxWave');
-
-constdiagram = comm.ConstellationDiagram( ...
-    'ReferenceConstellation',pammod(0:1,2), ...
-    'ChannelNames',{'Before convergence','After convergence'}, ...
-    'ShowLegend',true, ...
-    'SamplesPerSymbol',sps, ...
-    'SymbolsToDisplaySource','Property', ...
-    'SymbolsToDisplay',10000, ...
-    'XLimits',[-1.5 1.5], ...
-    'YLimits',[-1.5 1.5]);
 
 coarseSync = comm.CoarseFrequencyCompensator( ...
     'Modulation','PAM', ...
@@ -101,16 +64,11 @@ fineSync = comm.CarrierSynchronizer( ...
 
 rxSyncSig = fineSync(syncCoarse);
 rxSyncSig=rxSyncSig/mean(abs(rxSyncSig));
-constdiagram([rxSyncSig(1:10000) rxSyncSig(70001:80000)]);
 %prendo l'ultima parte del segnale, perchè più sincronizzata
 rxSyncSig=rxSyncSig(60001:end);
 
 %ci allineiamo pre filtraggio tramite correlazione con un preambolo
 [cros,lag_start] = xcorr(rxSyncSig,preamble);
-
-figure
-plot(abs(cros))
-title('Crosscorrelazione tra segnale e preambolo')
 
 [peak,idx_shift]=max(abs(cros));  % Trovo il picco della xcorr
 
@@ -137,16 +95,7 @@ rxfilter = comm.RaisedCosineReceiveFilter( ...
 %controllo se ricevo girato di 180° con il preambolo e poi correggo
 %plot della parte iniziale
 a=rxSyncSig(sample_shift:sample_shift+length(preamble));
-figure
-plot(real(a)) % -a perchè mi viene girata di 180°
-hold on
-grid on
-title('Confronto segnale Ricevuto con Preambolo');
-%xlabel('');
-%ylabel('');
-axis("padded");
-plot(real(preamble))
-legend('rxSyncSig','preamble')
+
 
 %rxFiltSig=rxfilter(rxSyncSig(sample_shift+(span*sps/2)-1:end)); %correggo ritardo filtro
 rxFiltSig=rxfilter(rxSyncSig(sample_shift-(span*sps/2)-1:end));
@@ -161,23 +110,6 @@ end
 rxFiltSig=rxFiltSig/mean(abs(rxFiltSig));
 
 %Check sull'allineamento del segnale (con buon SNR si vede chiaramente)
-figure
-plot(real(rxFiltSig))
-hold on, grid on,
-%plot(real(sig_c));
-title('Check allineamento del segnale')
-
-%plot post filtraggio
-constDiagram = comm.ConstellationDiagram( ...
-    'ReferenceConstellation',pammod(0:1,2), ...
-    'ChannelNames',{'Sequenza Filtrata'}, ...
-    'ShowLegend',true, ...
-    'XLimits',[-1.5 1.5], ...
-    'YLimits',[-1.5 1.5]);
-
-
-constDiagram(rxFiltSig)
-title('Sequenza Filtrata')
 sigdemod=pamdemod(rxFiltSig.',2);
 % sigdemod=pamdemod(rxFiltSig(span+1:end),2).';
 
@@ -212,76 +144,73 @@ for index=1:floor((length(sigdemod)/lung_sig)-1)
 
 end
 
-%trova numero pacchetti totale
-Npack = 0;
-sizeData = size(readData);
-for index=1:1: sizeData(2)
+% %trova numero pacchetti totale
+% Npack = 0;
+% sizeData = size(readData);
+% for index=1:1: sizeData(2)
+% 
+%     if (readData(index).crcOK == 1 && readData(index).endOK == 1)
+% 
+%         if (readData(index).packNumber>Npack)
+%             Npack = readData(index).packNumber;
+%         end
+%     end
+% end
+% 
+% in=1;
+% index = 1;
+% word = '';
+% while index<=Npack
+% 
+%     while in<=sizeData(2)
+% 
+%         if (readData(in).crcOK == 1 && readData(index).endOK == 1 && readData(in).packNumber == index)
+%             word = [ word readData(in).data]; %concatena tutte le parole in base al loro indice
+%             readData(in).scelto=1;
+%             index= index + 1;
+%             in=0;
+% 
+%         end
+%         in =in +1;
+% 
+%     end
+%     if (in>sizeData(2) && index<=Npack)
+%         disp('pacchetto non ricevuto correttamente')
+%         sbagliato=true;
+%         break;
+%     else
+%         sbagliato=false;
+%     end
+% end
+% if sbagliato==false
+%     fprintf('Hai ricevuto:\n %s', word)
+% end
 
-    if (readData(index).crcOK == 1 && readData(index).endOK == 1)
+%dataPackApp = [readData.data readData.packNumber readData.crcOK readData.endOK]
+for times = 1:1:size(readData,2)
+    dataPackApp(times, :) = [string(readData(times).data) , string(readData(times).packNumber) , string(readData(times).crcOK) , string(readData(times).endOK) ];
+end
 
-        if (readData(index).packNumber>Npack)
-            Npack = readData(index).packNumber;
+displayD = app.UITableRaw.DisplayData;
+displayD = [displayD ; dataPackApp];
+app.UITableRaw.Data = displayD;
+
+frase = "";
+indice = 1;
+
+for f = 1:1:1024
+    for c = 1:1:size(displayD,1)
+
+        if strcmp(displayD(c , 2), string(indice))
+            frase = strcat(frase,displayD(c , 1));
+            break
         end
     end
+    indice = indice + 1;
 end
+app.Messaggio.Value = sprintf('%s',frase);
 
-in=1;
-index = 1;
-word = '';
-while index<=Npack
-
-    while in<=sizeData(2)
-
-        if (readData(in).crcOK == 1 && readData(index).endOK == 1 && readData(in).packNumber == index)
-            word = [ word readData(in).data]; %concatena tutte le parole in base al loro indice
-            readData(in).scelto=1;
-            index= index + 1;
-            in=0;
-
-        end
-        in =in +1;
-
-    end
-    if (in>sizeData(2) && index<=Npack)
-        disp('pacchetto non ricevuto correttamente')
-        sbagliato=true;
-        break;
-    else
-        sbagliato=false;
-    end
 end
-if sbagliato==false
-    fprintf('Hai ricevuto:\n %s', word)
-end
-
-%% Prestazioni
-%EVM
-evm=[];
-dist1 = 0;
-dist_1 = 0;
-counter=0;
-for n=1:length(readData)
-    if readData(n).scelto==1
-        counter=counter+1;
-        A=real(rxFiltSig(1+readData(n).delay:readData(n).delay+lung_sig));
-        B=imag(rxFiltSig(1+readData(n).delay:readData(n).delay+lung_sig));
-        dist1(counter,1:lung_sig)=sqrt((1-A).^2+B.^2);
-        dist_1(counter,1:lung_sig)=sqrt((-1-A).^2+B.^2);
-    end
-end
-
-evm=min(dist1,dist_1);
-figure;
-bar(evm.','DisplayName','evm')
-grid on
-title('EVM')
-xlabel('posizione del bit nel pacchetto')
-evm_medio=sum(sum(evm))/numel(evm)
-%%MER
-mer=comm.MER(ReferenceSignalSource="Estimated from reference constellation", ...
-    ReferenceConstellation=pammod(0:1,2));
-MER=mer(rxFiltSig(1:end));
-fprintf('MER=%f dB',MER)
 
 
 %% Funzione che spacchetta messaggio
@@ -355,7 +284,7 @@ if i > 0
     end
     sigdemod(i+1:i+16)=zeros(1,16);
 else
-    frame = 0
+    frame = 0;
 end
 
 end
