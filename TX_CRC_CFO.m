@@ -13,7 +13,7 @@ close all;
 clear;
 
 % Specifiche Adalm Pluto
-Mypluto=findPlutoRadio
+Mypluto=findPlutoRadio;
 idTX=append('sn:', Mypluto.SerialNum);
 
 
