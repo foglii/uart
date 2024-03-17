@@ -14,7 +14,7 @@ load preamble.mat
 %clear;
 %%
 % Specifiche Adalm Pluto
-Mypluto=findPlutoRadio
+Mypluto=findPlutoRadio;
 idTX=append('sn:', Mypluto.SerialNum);
 
 % Definizione Variabili
@@ -22,6 +22,7 @@ SamplingRate=1e6;
 fc=2.475e9;
 lung_sig = 88;
 
+try
 %sequenze conosciute
 barker = comm.BarkerCode("Length",13,"SamplesPerFrame",16);
 seq_start=barker().';
@@ -196,12 +197,17 @@ displayD = [displayD ; dataPackApp];
 app.UITableRaw.Data = displayD;
 
 frase = "";
-indice = 1;
+indice = 0;
 
-for f = 1:1:1024
+for f = 0:1:1530
     for c = 1:1:size(displayD,1)
 
         if strcmp(displayD(c , 2), string(indice)) && strcmp(displayD(c , 3) , "true") && strcmp(displayD(c , 4) , "true")
+            if f == 0
+                app.Messaggio.Value = '';
+                app.UITableRaw.Data = {'Data Cleared', '0', 'false', 'false'};
+                break
+            end
             frase = strcat(frase,displayD(c , 1));
             break
         end
@@ -210,6 +216,8 @@ for f = 1:1:1024
 end
 app.Messaggio.Value = sprintf('%s',frase);
 
+catch
+end
 end
 
 

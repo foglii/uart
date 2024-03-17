@@ -8,10 +8,12 @@
 % 8 bit end sequence 
 
 % Specifiche Adalm Pluto
+
+function [txPluto] = TX(dataToSend, reset)
 Mypluto=findPlutoRadio;
 idTX=append('sn:', Mypluto.SerialNum);
 
-
+%data_tx = dataTosSend;
 % Definizione Parametri
 SamplingRate=1e6; % Frequenza di campionamento (Hz)
 fc=2.475e9;
@@ -37,12 +39,22 @@ packet_struct.crc = [];
 %packet_struct.crcNum = [];
 
 
-data_tx= 'Lorem ipsum dolor sit amet, consectetur adipisci elit, sed eiusmod tempor incidunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrum exercitationem ullam corporis suscipit laboriosam, nisi ut aliquid ex ea commodi consequatur. Quis aute iure reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint obcaecat cupiditat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.'; %stringa che vogliamo trasmettere
+%data_tx = 'Lorem ipsum dolor sit amet, consectetur adipisci elit, sed eiusmod tempor incidunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrum exercitationem ullam corporis suscipit laboriosam, nisi ut aliquid ex ea commodi consequatur. Quis aute iure reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint obcaecat cupiditat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.' %stringa che vogliamo trasmettere
+dataToSend = reshape(dataToSend ,1 , []); % convert matrix to row vector
+data_tx = string(dataToSend(1));
+for i = 2:1:size(dataToSend)
+data_tx = strcat(data_tx,string(dataToSend(i)));
+end
+
+data_tx = char(data_tx);
+data_tx = data_tx(1:min(1530,length(data_tx)));
+
+
 if mod(length(data_tx),6)~=0
     data_tx=pad(data_tx,(length(data_tx)+6-mod(length(data_tx),6)))
 end
 
-
+if reset == 0
 for  i=1:(ceil(length(data_tx) / 6))
     
     packet_struct(i).numberBin = reshape(dec2bin(i, 8)-'0',[1,8]);
@@ -76,6 +88,19 @@ for i=2:(ceil(length(data_tx) / 6))
 
 end
 
+elseif reset == 1
+    clear packet_struct;
+    packet_struct(1).numberBin = reshape(dec2bin(0, 8)-'0',[1,8]);
+    packet_struct(1).dataRaw = data_tx; 
+    packet_struct(1).dataBin = reshape((dec2bin(char(packet_struct(1).dataRaw), 8)-'0').',1,[]);
+    base_crc = [packet_struct(1).numberBin packet_struct(1).dataBin];
+
+    codeword = crc8(base_crc.');
+    packet_struct(1).crc = codeword(end-8+1:end).';
+    message = [seq_start packet_struct(1).numberBin packet_struct(1).dataBin packet_struct(1).crc seq_end];
+end
+
+
 symbols=message.'; %cosi rimane vettore colonna
 
 % Creazione segnale PAM
@@ -91,7 +116,7 @@ txfilter=comm.RaisedCosineTransmitFilter(...
   Shape='Square root', ...
   RolloffFactor=beta, ...
   FilterSpanInSymbols=span, ...
-  OutputSamplesPerSymbol=sps)
+  OutputSamplesPerSymbol=sps);
 
 % normalizzazione per avere a 1 il massimo del filtro 
 b = coeffs(txfilter);
@@ -111,11 +136,6 @@ f_ax=(-Nfft/2:Nfft/2-1)/Nfft*SamplingRate;
 X=fft(txfilter.coeffs.Numerator,Nfft);
 X=fftshift(X);
 
-
-%correzione delay tx
-%tx_signal= tx_signal((span*sps/2)+1:end);
-
-t3=[0:1:length(tx_signal)-1];
 
 % Grafico Segnale e Segnale filtrato
 %variabile di supporto per grafico è segnale filtrato senza padding di
@@ -139,4 +159,5 @@ txPluto = sdrtx('Pluto',...
        'BasebandSampleRate',SamplingRate);
 
 transmitRepeat(txPluto,txNorm_c);
+end
 %%
