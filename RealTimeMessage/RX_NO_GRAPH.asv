@@ -40,132 +40,158 @@ rxPluto = sdrrx('Pluto','RadioID',...
     'OutputDataType','single',...
     'BasebandSampleRate',SamplingRate);
 
-tic;
+while app.receviverState == 1
+    tic;
 
-rxWave=capture(rxPluto,80000);
+    rxWave=capture(rxPluto,40000);
 
-toc;
+    toc;
 
-try
-    rxWave=rxWave/mean(abs(rxWave));
+    pause(0.05);
+    try
+        rxWave=rxWave/mean(abs(rxWave));
 
-    coarseSync = comm.CoarseFrequencyCompensator( ...
-        'Modulation','PAM', ...
-        'FrequencyResolution',1, ...
-        'SampleRate', 1e6,...
-        'SamplesPerSymbol',sps);
+        coarseSync = comm.CoarseFrequencyCompensator( ...
+            'Modulation','PAM', ...
+            'FrequencyResolution',1, ...
+            'SampleRate', 1e6,...
+            'SamplesPerSymbol',sps);
 
-    fineSync = comm.CarrierSynchronizer( ...
-        'DampingFactor',0.7, ...
-        'NormalizedLoopBandwidth',0.0005, ...
-        'SamplesPerSymbol',sps, ...
-        'Modulation','PAM');
+        fineSync = comm.CarrierSynchronizer( ...
+            'DampingFactor',0.7, ...
+            'NormalizedLoopBandwidth',0.0005, ...
+            'SamplesPerSymbol',sps, ...
+            'Modulation','PAM');
 
-    [syncCoarse,ritardo] = coarseSync(rxWave);
+        [syncCoarse,ritardo] = coarseSync(rxWave);
 
-    rxSyncSig = fineSync(syncCoarse);
-    rxSyncSig=rxSyncSig/mean(abs(rxSyncSig));
-    %prendo l'ultima parte del segnale, perchè più sincronizzata
-    rxSyncSig=rxSyncSig(60001:end);
+        rxSyncSig = fineSync(syncCoarse);
+        rxSyncSig=rxSyncSig/mean(abs(rxSyncSig));
+        %prendo l'ultima parte del segnale, perchè più sincronizzata
+        rxSyncSig=rxSyncSig(30001:end);
 
-    %ci allineiamo pre filtraggio tramite correlazione con un preambolo
-    [cros,lag_start] = xcorr(rxSyncSig,preamble);
+        %ci allineiamo pre filtraggio tramite correlazione con un preambolo
+        [cros,lag_start] = xcorr(rxSyncSig,preamble);
 
-    [peak,idx_shift]=max(abs(cros));  % Trovo il picco della xcorr
+        [peak,idx_shift]=max(abs(cros));  % Trovo il picco della xcorr
 
-    if idx_shift>30000 || idx_shift<20000 %scelta di un picco nella prima metà della trasmissione
-        tmp=cros;
-        tmp(30000:end)=0;
-        tmp(1:20000)=0;
-        [peak,idx_shift]=max(abs(tmp));
-    end
-    sample_shift=idx_shift-length(rxSyncSig)+1;
-    %Questo è lo shift da applicare
-
-
-    % Design del filtro a coseno rialzato
-    rxfilter = comm.RaisedCosineReceiveFilter( ...
-        'Shape','Square root', ...
-        'RolloffFactor',beta, ...
-        'FilterSpanInSymbols',span, ...
-        'InputSamplesPerSymbol',sps, ...
-        'DecimationFactor',sps,...
-        'Gain',10);
+        if idx_shift>15000 || idx_shift<10000 %scelta di un picco nella prima metà della trasmissione
+            tmp=cros;
+            tmp(15000:end)=0;
+            tmp(1:10000)=0;
+            [peak,idx_shift]=max(abs(tmp));
+        end
+        sample_shift=idx_shift-length(rxSyncSig)+1;
+        %Questo è lo shift da applicare
 
 
-    %controllo se ricevo girato di 180° con il preambolo e poi correggo
-    %plot della parte iniziale
-    a=rxSyncSig(sample_shift:sample_shift+length(preamble));
+        % Design del filtro a coseno rialzato
+        rxfilter = comm.RaisedCosineReceiveFilter( ...
+            'Shape','Square root', ...
+            'RolloffFactor',beta, ...
+            'FilterSpanInSymbols',span, ...
+            'InputSamplesPerSymbol',sps, ...
+            'DecimationFactor',sps,...
+            'Gain',10);
 
 
-    %rxFiltSig=rxfilter(rxSyncSig(sample_shift+(span*sps/2)-1:end)); %correggo ritardo filtro
-    rxFiltSig=rxfilter(rxSyncSig(sample_shift-(span*sps/2)-1:end));
-    rxFiltSig=rxFiltSig(span+1:end);
-    [~,b]=biterr(pamdemod(rxFiltSig(1:16),2),pamdemod(seq_start,2).');
-    if b>0.5
-        rxFiltSig=-rxFiltSig;
-    end
+        %controllo se ricevo girato di 180° con il preambolo e poi correggo
+        %plot della parte iniziale
+        a=rxSyncSig(sample_shift:sample_shift+length(preamble));
+
+
+        %rxFiltSig=rxfilter(rxSyncSig(sample_shift+(span*sps/2)-1:end)); %correggo ritardo filtro
+        rxFiltSig=rxfilter(rxSyncSig(sample_shift-(span*sps/2)-1:end));
+        rxFiltSig=rxFiltSig(span+1:end);
+        [~,b]=biterr(pamdemod(rxFiltSig(1:16),2),pamdemod(seq_start,2).');
+        if b>0.5
+            rxFiltSig=-rxFiltSig;
+        end
 
 
 
-    rxFiltSig=rxFiltSig/mean(abs(rxFiltSig));
+        rxFiltSig=rxFiltSig/mean(abs(rxFiltSig));
 
-    %Check sull'allineamento del segnale (con buon SNR si vede chiaramente)
-    sigdemod=pamdemod(rxFiltSig.',2);
-    % sigdemod=pamdemod(rxFiltSig(span+1:end),2).';
+        %Check sull'allineamento del segnale (con buon SNR si vede chiaramente)
+        sigdemod=pamdemod(rxFiltSig.',2);
+        % sigdemod=pamdemod(rxFiltSig(span+1:end),2).';
 
 
-    %% Spacchettamento
-    clear readData;
+        %% Spacchettamento
+        clear readData;
 
-    sbagliato = false;
-    readData = struct;
-    readData.packNumber = [];
-    readData.data = [];
-    readData.crcOK = [];
-    readData.endOK=[];
-    readData.delay=[];
-    readData.scelto=[];
+        sbagliato = false;
+        readData = struct;
+        readData.packNumber = [];
+        readData.data = [];
+        readData.crcOK = [];
+        readData.endOK=[];
+        readData.delay=[];
+        readData.scelto=[];
 
-    frame=sigdemod(1:lung_sig);
-    sigdemod_f=sigdemod;
-    sigdemod_f(1:lung_sig)=zeros(1,lung_sig);
+        frame=sigdemod(1:lung_sig);
+        sigdemod_f=sigdemod;
+        sigdemod_f(1:lung_sig)=zeros(1,lung_sig);
 
-    delay=1;
-    for index=1:floor((length(sigdemod)/lung_sig)-1)
+        delay=1;
+        for index=1:floor((length(sigdemod)/lung_sig)-1)
 
-        readData(index).delay=delay;
-        [readData(index).packNumber, readData(index).data, readData(index).crcOK, readData(index).endOK] = unpackMessage(frame);
-        readData(index).scelto=0;
-        [delay,sigdemod_f,frame]=findDelay(seq_start,sigdemod_f);
-        if frame==0
+            readData(index).delay=delay;
+            [readData(index).packNumber, readData(index).data, readData(index).crcOK, readData(index).endOK] = unpackMessage(frame);
+            readData(index).scelto=0;
             [delay,sigdemod_f,frame]=findDelay(seq_start,sigdemod_f);
-        end
-
-
-    end
-    
-    for times = 1:1:size(readData,2)
-
-        dataPackApp(times, :) = [string(readData(times).data) , string(readData(times).packNumber) , string(readData(times).crcOK) , string(readData(times).endOK) ];
-        if readData(times).crcOK == true && readData(times).endOK == true
-            if readData(times).packNumber == 0
-                app.dataToDisplay = strings(1,256);
-                break;
+            if frame==0
+                [delay,sigdemod_f,frame]=findDelay(seq_start,sigdemod_f);
             end
-            app.dataToDisplay(readData(times).packNumber + 1) = readData(times).data
+
+
         end
+
+        for times = 1:1:size(readData,2)
+
+            dataPackApp(times, :) = [num2str(posixtime(datetime('now')) * 1e6) , string(readData(times).data) , string(readData(times).packNumber) , string(readData(times).crcOK) , string(readData(times).endOK) ];
+            if readData(times).crcOK == true && readData(times).endOK == true
+                if readData(times).packNumber == 0
+                    app.dataToDisplay = strings(1,256);
+                    break;
+                end
+                readData(times).scelto=1;
+                app.dataToDisplay(readData(times).packNumber + 1) = readData(times).data
+            end
+        end
+
+        frase=app.dataToDisplay;
+        % frase = strjoin(app.dataToDisplay,'');
+
+        displayD = app.UITableRaw.DisplayData;
+        displayD = [displayD ; dataPackApp];
+        app.UITableRaw.Data = displayD;
+        app.Messaggio.Value = sprintf('%s',frase);
+
+    catch
     end
+    evm=[];
+dist1 = 0;
+dist_1 = 0;
+counter=0;
+for n=1:length(readData)
+    if readData(n).scelto==1
+        counter=counter+1;
+        A=real(rxFiltSig(1+readData(n).delay:readData(n).delay+lung_sig));
+        B=imag(rxFiltSig(1+readData(n).delay:readData(n).delay+lung_sig));
+        dist1(counter,1:lung_sig)=sqrt((1-A).^2+B.^2);
+        dist_1(counter,1:lung_sig)=sqrt((-1-A).^2+B.^2);
+    end
+end
 
-    frase = strjoin(app.dataToDisplay,'');
+evm=min(dist1,dist_1);
+evm_medio=sum(sum(evm))/numel(evm)
+%%MER
+mer=comm.MER(ReferenceSignalSource="Estimated from reference constellation", ...
+    ReferenceConstellation=pammod(0:1,2));
+MER=mer(rxFiltSig(1:end));
+app.UITable.Data=[evm_medio,MER]
 
-    displayD = app.UITableRaw.DisplayData;
-    displayD = [displayD ; dataPackApp];
-    app.UITableRaw.Data = displayD;
-
-    app.Messaggio.Value = sprintf('%s',frase);
-
-catch
 end
 end
 

@@ -155,6 +155,7 @@ while app.receviverState == 1
                     app.dataToDisplay = strings(1,256);
                     break;
                 end
+                readData(times).scelto=1;
                 app.dataToDisplay(readData(times).packNumber + 1) = readData(times).data
             end
         end
@@ -164,11 +165,32 @@ while app.receviverState == 1
         displayD = app.UITableRaw.DisplayData;
         displayD = [displayD ; dataPackApp];
         app.UITableRaw.Data = displayD;
-
         app.Messaggio.Value = sprintf('%s',frase);
 
     catch
     end
+    evm=[];
+dist1 = 0;
+dist_1 = 0;
+counter=0;
+for n=1:length(readData)
+    if readData(n).scelto==1
+        counter=counter+1;
+        A=real(rxFiltSig(1+readData(n).delay:readData(n).delay+lung_sig));
+        B=imag(rxFiltSig(1+readData(n).delay:readData(n).delay+lung_sig));
+        dist1(counter,1:lung_sig)=sqrt((1-A).^2+B.^2);
+        dist_1(counter,1:lung_sig)=sqrt((-1-A).^2+B.^2);
+    end
+end
+
+evm=min(dist1,dist_1);
+evm_medio=sum(sum(evm))/numel(evm)
+%%MER
+mer=comm.MER(ReferenceSignalSource="Estimated from reference constellation", ...
+    ReferenceConstellation=pammod(0:1,2));
+MER=mer(rxFiltSig(1:end));
+app.UITable.Data=[evm_medio,MER]
+
 end
 end
 

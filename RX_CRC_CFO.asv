@@ -1,11 +1,11 @@
- %% Ricevitore
+%% Ricevitore
 
-% ---------- packet 
-% 16 bit start sequence 
+% ---------- packet
+% 16 bit start sequence
 % 8 bit packet number
 % 4 byte data
 % 1 byte crc
-% 8 bit end sequence 
+% 8 bit end sequence
 
 
 close all;
@@ -13,7 +13,7 @@ load preamble.mat
 
 %preamble=txNorm_c(1:sps*length(seq_start));
 %clear;
-%% 
+%%
 % Specifiche Adalm Pluto
 Mypluto=findPlutoRadio
 idTX=append('sn:', Mypluto.SerialNum);
@@ -34,13 +34,13 @@ sps = 8;  % Campioni per simbolo (oversampling factor)
 
 % Ricevitore PLuto
 rxPluto = sdrrx('Pluto','RadioID',...
-    "usb:0",'CenterFrequency',fc,...
+    idTX,'CenterFrequency',fc,...
     'GainSource','AGC Fast Attack',...
-     'Gain',40,...
-     'OutputDataType','single',...
-     'BasebandSampleRate',SamplingRate);
+    'Gain',40,...
+    'OutputDataType','single',...
+    'BasebandSampleRate',SamplingRate);
 
- tic;  
+tic;
 
 rxWave=capture(rxPluto,80000);
 
@@ -103,9 +103,9 @@ rxSyncSig = fineSync(syncCoarse);
 rxSyncSig=rxSyncSig/mean(abs(rxSyncSig));
 constdiagram([rxSyncSig(1:10000) rxSyncSig(70001:80000)]);
 %prendo l'ultima parte del segnale, perchè più sincronizzata
-rxSyncSig=rxSyncSig(60001:end); 
+rxSyncSig=rxSyncSig(60001:end);
 
-%ci allineiamo pre filtraggio tramite correlazione con un preambolo 
+%ci allineiamo pre filtraggio tramite correlazione con un preambolo
 [cros,lag_start] = xcorr(rxSyncSig,preamble);
 
 figure
@@ -119,7 +119,7 @@ if idx_shift>30000 || idx_shift<20000 %scelta di un picco nella prima metà dell
     tmp(30000:end)=0;
     tmp(1:20000)=0;
     [peak,idx_shift]=max(abs(tmp));
-end 
+end
 sample_shift=idx_shift-length(rxSyncSig)+1;
 %Questo è lo shift da applicare
 
@@ -134,11 +134,11 @@ rxfilter = comm.RaisedCosineReceiveFilter( ...
     'Gain',10);
 
 
-%controllo se ricevo girato di 180° con il preambolo e poi correggo 
+%controllo se ricevo girato di 180° con il preambolo e poi correggo
 %plot della parte iniziale
-a=rxSyncSig(sample_shift:sample_shift+length(preamble)); 
+a=rxSyncSig(sample_shift:sample_shift+length(preamble));
 figure
-plot(real(a)) % -a perchè mi viene girata di 180°    
+plot(real(a)) % -a perchè mi viene girata di 180°
 hold on
 grid on
 title('Confronto segnale Ricevuto con Preambolo');
@@ -167,13 +167,13 @@ hold on, grid on,
 %plot(real(sig_c));
 title('Check allineamento del segnale')
 
- %plot post filtraggio 
- constDiagram = comm.ConstellationDiagram( ...
-     'ReferenceConstellation',pammod(0:1,2), ...
+%plot post filtraggio
+constDiagram = comm.ConstellationDiagram( ...
+    'ReferenceConstellation',pammod(0:1,2), ...
     'ChannelNames',{'Sequenza Filtrata'}, ...
-    'ShowLegend',true, ...    
-     'XLimits',[-1.5 1.5], ...
-     'YLimits',[-1.5 1.5]);
+    'ShowLegend',true, ...
+    'XLimits',[-1.5 1.5], ...
+    'YLimits',[-1.5 1.5]);
 
 
 constDiagram(rxFiltSig)
@@ -183,18 +183,18 @@ sigdemod=pamdemod(rxFiltSig.',2);
 
 
 %% Spacchettamento
-clear readData; 
+clear readData;
 
 sbagliato = false;
-readData = struct; 
-readData.packNumber = [];      
+readData = struct;
+readData.packNumber = [];
 readData.data = [];
 readData.crcOK = [];
 readData.endOK=[];
-readData.delay=[]; 
+readData.delay=[];
 readData.scelto=[];
 
-frame=sigdemod(1:lung_sig); 
+frame=sigdemod(1:lung_sig);
 sigdemod_f=sigdemod;
 sigdemod_f(1:lung_sig)=zeros(1,lung_sig);
 
@@ -206,22 +206,22 @@ for index=1:floor((length(sigdemod)/lung_sig)-1)
     readData(index).scelto=0;
     [delay,sigdemod_f,frame]=findDelay(seq_start,sigdemod_f);
     if frame==0
-         [delay,sigdemod_f,frame]=findDelay(seq_start,sigdemod_f);
+        [delay,sigdemod_f,frame]=findDelay(seq_start,sigdemod_f);
     end
-   
+
 
 end
 
-%trova numero pacchetti totale 
-Npack = 0; 
+%trova numero pacchetti totale
+Npack = 0;
 sizeData = size(readData);
 for index=1:1: sizeData(2)
-    
+
     if (readData(index).crcOK == 1 && readData(index).endOK == 1)
-        
+
         if (readData(index).packNumber>Npack)
-             Npack = readData(index).packNumber;
-        end      
+            Npack = readData(index).packNumber;
+        end
     end
 end
 
@@ -229,29 +229,29 @@ in=1;
 index = 1;
 word = '';
 while index<=Npack
-    
+
     while in<=sizeData(2)
 
         if (readData(in).crcOK == 1 && readData(index).endOK == 1 && readData(in).packNumber == index)
-                word = [ word readData(in).data]; %concatena tutte le parole in base al loro indice 
-                readData(in).scelto=1;
-                index= index + 1;
-                in=0;
-                  
+            word = [ word readData(in).data]; %concatena tutte le parole in base al loro indice
+            readData(in).scelto=1;
+            index= index + 1;
+            in=0;
+
         end
         in =in +1;
-  
+
     end
     if (in>sizeData(2) && index<=Npack)
         disp('pacchetto non ricevuto correttamente')
         sbagliato=true;
         break;
-    else 
+    else
         sbagliato=false;
-    end  
+    end
 end
 if sbagliato==false
-fprintf('Hai ricevuto:\n %s', word)
+    fprintf('Hai ricevuto:\n %s', word)
 end
 
 %% Prestazioni
@@ -262,11 +262,11 @@ dist_1 = 0;
 counter=0;
 for n=1:length(readData)
     if readData(n).scelto==1
-     counter=counter+1;
-     A=real(rxFiltSig(1+readData(n).delay:readData(n).delay+lung_sig));
-     B=imag(rxFiltSig(1+readData(n).delay:readData(n).delay+lung_sig));
-     dist1(counter,1:lung_sig)=sqrt((1-A).^2+B.^2);
-     dist_1(counter,1:lung_sig)=sqrt((-1-A).^2+B.^2);
+        counter=counter+1;
+        A=real(rxFiltSig(1+readData(n).delay:readData(n).delay+lung_sig));
+        B=imag(rxFiltSig(1+readData(n).delay:readData(n).delay+lung_sig));
+        dist1(counter,1:lung_sig)=sqrt((1-A).^2+B.^2);
+        dist_1(counter,1:lung_sig)=sqrt((-1-A).^2+B.^2);
     end
 end
 
@@ -290,23 +290,22 @@ fprintf('MER=%f dB',MER)
 
 %[readData(1).packNumber, readData(1).data, readData(1).crcOK] = unpackMessage(frame);
 function [packetNum, data, crcCheck, endOK] = unpackMessage(rawData)
-    
 
-    charVec = zeros(6,8);
-    seq_end=[1,1,1,0,0,0,1,1,];
-    packetNum = 0;
-    data = 0;
-    crcCheck = 0;
-    endOK = 0;
 
-    siz
-    if size(rawData) == 88
+charVec = zeros(6,8);
+seq_end=[1,1,1,0,0,0,1,1,];
+packetNum = 0;
+data = 0;
+crcCheck = 0;
+endOK = 0;
+
+if size(rawData,2) == 88
 
     packetNum = rawData(17:24);
     dati= rawData(25:(24 + 8*6));
     crc_data = rawData(73:80);
     endSeq = rawData((25 + 8*7):24+8*8);
-    
+
     for d = 1:1:6
 
         charVec(d,:) = rawData(25 + (8*(d-1)): 24 + 8*d);
@@ -321,42 +320,42 @@ function [packetNum, data, crcCheck, endOK] = unpackMessage(rawData)
     data = charVec.';
 
     base_crc = [packetNum dati];
-    
+
     crc8 = comm.CRCGenerator('Polynomial','z^8 + z^2 + z + 1');
 
     t = crc8(double(base_crc.'));
     crc = t(end-8+1:end).';
-    
+
     crcCheck = isequal(crc_data,crc);
 
-    packetNum = packetNum +'0';  
+    packetNum = packetNum +'0';
     packetNum =char(packetNum);
     packetNum=bin2dec(packetNum);
 
     endOK = strcmp(char(seq_end),char(endSeq));
 
-    end
+end
 
 end
 
 
 function [i,sigdemod,frame]=findDelay(seq_start,sigdemod)
-        
-        lung_sig = 88;
-        [c,c_lag]=xcorr(sigdemod,seq_start);
-        [m,h] = max(c);
-        i = c_lag(h);
 
-        %controllo se il pacchetto è parziale
-        if i > 0
-        if i<length(sigdemod)-lung_sig 
-           frame = sigdemod(i+1:i+lung_sig);
-        else 
-           frame=zeros(1,lung_sig);
-        end
-        sigdemod(i+1:i+16)=zeros(1,16);
-        else
-            frame = 0
-        end
-       
+lung_sig = 88;
+[c,c_lag]=xcorr(sigdemod,seq_start);
+[m,h] = max(c);
+i = c_lag(h);
+
+%controllo se il pacchetto è parziale
+if i > 0
+    if i<length(sigdemod)-lung_sig
+        frame = sigdemod(i+1:i+lung_sig);
+    else
+        frame=zeros(1,lung_sig);
+    end
+    sigdemod(i+1:i+16)=zeros(1,16);
+else
+    frame = 0
+end
+
 end
