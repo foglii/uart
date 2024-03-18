@@ -1,6 +1,6 @@
 <deployment-project plugin="plugin.ezdeploy" plugin-version="1.0">
   <configuration build-checksum="1074338537" file="E:\uart\RealTimeMessage\realTimeMessageRx.prj" location="E:\uart\RealTimeMessage" name="realTimeMessageRx" preferred-package-location="E:\uart\RealTimeMessage\realTimeMessageRx\for_redistribution" preferred-package-type="package.type.exe" target="target.ezdeploy.standalone" target-name="Application Compiler">
-    <param.appname>realTimeMessageRx</param.appname>
+    <param.appname>BroadcastSystemPrototype</param.appname>
     <param.icon>${PROJECT_ROOT}\realTimeMessageRx_resources\icon.ico</param.icon>
     <param.icons>
       <file>${PROJECT_ROOT}\realTimeMessageRx_resources\icon_48.png</file>
@@ -12,13 +12,13 @@
     <param.authnamewatermark />
     <param.email />
     <param.company />
-    <param.summary />
-    <param.description />
-    <param.screenshot>C:\Users\zixan\Documents\relazione\RispostaInFrequenza.png</param.screenshot>
+    <param.summary>Broadcast System Prototype</param.summary>
+    <param.description>Applicazione utile a validare il sistema broadcast custom implementato</param.description>
+    <param.screenshot>C:\Users\zixan\Documents\relazione\wow.jpg</param.screenshot>
     <param.guid />
-    <param.installpath.string>\realTimeMessageRx\</param.installpath.string>
+    <param.installpath.string>\BroadcastSystemPrototype\</param.installpath.string>
     <param.installpath.combo>option.installpath.programfiles</param.installpath.combo>
-    <param.logo />
+    <param.logo>C:\Users\zixan\Documents\relazione\lol.jpg</param.logo>
     <param.install.notes />
     <param.target.install.notes />
     <param.intermediate>${PROJECT_ROOT}\realTimeMessageRx\for_testing</param.intermediate>
@@ -46,17 +46,16 @@
 	 
  Input Arguments 
 	 -?  print help on how to use the application 
-	 input arguments</param.help.text>
+	 input arguments 
+ Description 
+ 	 Applicazione utile a validare il sistema broadcast custom implementato</param.help.text>
     <unset>
       <param.authnamewatermark />
       <param.email />
       <param.company />
-      <param.summary />
-      <param.description />
       <param.guid />
       <param.installpath.string />
       <param.installpath.combo />
-      <param.logo />
       <param.install.notes />
       <param.target.install.notes />
       <param.intermediate />
@@ -86,13 +85,14 @@
     <fileset.resources>
       <file>${PROJECT_ROOT}\preamble.mat</file>
       <file>${PROJECT_ROOT}\RX_NO_GRAPH.m</file>
+      <file>${PROJECT_ROOT}\TX_NO_GRAPH.m</file>
     </fileset.resources>
     <fileset.package />
     <fileset.depfun />
     <build-deliverables>
+      <file location="${PROJECT_ROOT}\realTimeMessageRx\for_testing" name="BroadcastSystemPrototype.exe" optional="false">E:\uart\RealTimeMessage\realTimeMessageRx\for_testing\BroadcastSystemPrototype.exe</file>
       <file location="${PROJECT_ROOT}\realTimeMessageRx\for_testing" name="readme.txt" optional="true">E:\uart\RealTimeMessage\realTimeMessageRx\for_testing\readme.txt</file>
       <file location="${PROJECT_ROOT}\realTimeMessageRx\for_testing" name="splash.png" optional="false">E:\uart\RealTimeMessage\realTimeMessageRx\for_testing\splash.png</file>
-      <file location="${PROJECT_ROOT}\realTimeMessageRx\for_testing" name="realTimeMessageRx.exe" optional="false">E:\uart\RealTimeMessage\realTimeMessageRx\for_testing\realTimeMessageRx.exe</file>
     </build-deliverables>
     <workflow />
     <matlab>
