@@ -3,7 +3,7 @@
 % ---------- packet
 % 16 bit start sequence
 % 8 bit packet number
-% 4 byte data
+% 6 byte data
 % 1 byte crc
 % 8 bit end sequence
 
