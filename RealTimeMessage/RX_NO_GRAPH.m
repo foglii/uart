@@ -40,7 +40,7 @@ rxPluto = sdrrx('Pluto','RadioID',...
     'OutputDataType','single',...
     'BasebandSampleRate',SamplingRate);
 
-while app.receviverState == 1
+while app.receiverState == 1
     tic;
 
     rxWave=capture(rxPluto,40000);
