@@ -288,7 +288,7 @@ fprintf('MER=%f dB',MER)
 %Dato un frame di bit ne estrae il numero del pacchetto, i dati e controlla
 %la validità del contenuto
 
-%[readData(1).packNumber, readData(1).data, readData(1).crcOK] = unpackMessage(frame);
+%[readData(index).packNumber, readData(index).data, readData(index).crcOK, readData(index).endOK] = unpackMessage(frame);
 function [packetNum, data, crcCheck, endOK] = unpackMessage(rawData)
 
 
